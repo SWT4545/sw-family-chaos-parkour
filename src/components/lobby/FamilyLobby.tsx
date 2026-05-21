@@ -12,7 +12,9 @@ const MAPS = [
 
 interface FamilyLobbyProps {
   player1: Character
+  player2?: Character | null
   onStartMatch: () => void
+  onSelectP2?: () => void
   onBack: () => void
 }
 
@@ -49,7 +51,7 @@ function CharacterPortrait({ character }: { character: Character }) {
   )
 }
 
-export function FamilyLobby({ player1, onStartMatch, onBack }: FamilyLobbyProps) {
+export function FamilyLobby({ player1, player2, onStartMatch, onSelectP2, onBack }: FamilyLobbyProps) {
   const [mapIndex, setMapIndex] = useState(0)
   const map = MAPS[mapIndex]
 
@@ -116,28 +118,43 @@ export function FamilyLobby({ player1, onStartMatch, onBack }: FamilyLobbyProps)
             </div>
           </div>
 
-          {/* Player 2 open slot */}
-          <div
-            className="flex-1 rounded-2xl p-4 backdrop-blur-sm border border-dashed border-gray-700/40 text-center"
-            style={{ backgroundColor: 'rgba(10,10,10,0.6)' }}
-          >
-            <p className="text-[10px] uppercase tracking-widest text-gray-600 font-bold mb-3">
-              Player 2
-            </p>
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-32 h-44 sm:w-40 sm:h-56 rounded-xl bg-gray-800/40 flex items-center justify-center">
-                <Users size={36} className="text-gray-600" />
-              </div>
-              <div className="text-center">
-                <p className="text-[10px] uppercase tracking-widest text-gray-600 font-bold">
-                  Waiting
-                </p>
-                <h3 className="font-black text-gray-600 text-base uppercase leading-tight">
-                  Open Slot
-                </h3>
+          {/* Player 2 */}
+          {player2 ? (
+            <div
+              className="flex-1 rounded-2xl p-4 backdrop-blur-sm border text-center"
+              style={{
+                backgroundColor: 'rgba(10,10,10,0.85)',
+                borderColor: `${player2.color}30`,
+              }}
+            >
+              <p className="text-[10px] uppercase tracking-widest text-blue-400 font-bold mb-3">
+                Player 2
+              </p>
+              <CharacterPortrait character={player2} />
+            </div>
+          ) : (
+            <div
+              className="flex-1 rounded-2xl p-4 backdrop-blur-sm border border-dashed border-gray-700/40 text-center"
+              style={{ backgroundColor: 'rgba(10,10,10,0.6)' }}
+            >
+              <p className="text-[10px] uppercase tracking-widest text-gray-600 font-bold mb-3">
+                Player 2
+              </p>
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-32 h-44 sm:w-40 sm:h-56 rounded-xl bg-gray-800/40 flex items-center justify-center">
+                  <Users size={32} className="text-gray-600" />
+                </div>
+                {onSelectP2 && (
+                  <button
+                    onClick={onSelectP2}
+                    className="text-[10px] uppercase tracking-widest text-yellow-500 font-bold border border-yellow-500/30 rounded-lg px-3 py-1.5 hover:bg-yellow-500/10 transition-colors pointer-events-auto"
+                  >
+                    + Choose Character
+                  </button>
+                )}
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Map picker */}
@@ -145,10 +162,15 @@ export function FamilyLobby({ player1, onStartMatch, onBack }: FamilyLobbyProps)
           className="w-full max-w-2xl rounded-2xl p-4 sm:p-5 backdrop-blur-sm border border-white/[0.06]"
           style={{ backgroundColor: 'rgba(10,10,10,0.85)' }}
         >
-          <div className="flex items-center gap-2 mb-3">
-            <Map size={14} className="text-yellow-500" />
-            <p className="text-[10px] uppercase tracking-widest text-yellow-500 font-bold">
-              Map Selection
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Map size={14} className="text-yellow-500" />
+              <p className="text-[10px] uppercase tracking-widest text-yellow-500 font-bold">
+                Map Selection
+              </p>
+            </div>
+            <p className="text-[10px] uppercase tracking-widest text-gray-600 font-bold">
+              Match Duration&nbsp;·&nbsp;<span className="text-gray-400">8:00</span>
             </p>
           </div>
           <div className="flex items-center gap-3">

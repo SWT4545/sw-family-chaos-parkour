@@ -7,11 +7,12 @@ import { CHARACTERS } from '@/lib/game/characters/characters'
 import { Character } from '@/types/player'
 
 interface CharacterSelectProps {
+  playerNumber?: 1 | 2
   onSelect: (character: Character) => void
   onBack: () => void
 }
 
-export function CharacterSelect({ onSelect, onBack }: CharacterSelectProps) {
+export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: CharacterSelectProps) {
   const [focused, setFocused] = useState<Character>(CHARACTERS[0])
 
   return (
@@ -50,10 +51,10 @@ export function CharacterSelect({ onSelect, onBack }: CharacterSelectProps) {
 
         <div className="text-center">
           <p className="text-[10px] uppercase tracking-[0.35em] text-yellow-500 font-bold">
-            S&W Family Chaos Parkour
+            {playerNumber === 2 ? 'Player 2 — S&W Family Chaos Parkour' : 'S&W Family Chaos Parkour'}
           </p>
           <h1 className="text-lg sm:text-2xl font-black uppercase tracking-widest text-white leading-tight">
-            Choose Your Champion
+            {playerNumber === 2 ? 'Player 2 — Choose' : 'Choose Your Champion'}
           </h1>
         </div>
 

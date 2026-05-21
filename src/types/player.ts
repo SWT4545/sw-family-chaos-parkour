@@ -1,5 +1,5 @@
 export type CharacterId = 'commander' | 'bj' | 'brae' | 'xanny'
-export type GameScreen = 'main-menu' | 'character-select' | 'lobby' | 'game'
+export type GameScreen = 'main-menu' | 'character-select' | 'lobby' | 'game' | 'victory'
 
 export interface Character {
   id: CharacterId
