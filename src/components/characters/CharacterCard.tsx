@@ -10,6 +10,8 @@ interface CharacterCardProps {
   selected: boolean
   onSelect: () => void
   size?: 'sm' | 'md' | 'lg'
+  /** Replaces the built-in size classes — use when a parent controls dimensions */
+  sizeClassName?: string
 }
 
 const sizes = {
@@ -18,13 +20,13 @@ const sizes = {
   lg: 'w-36 h-52 sm:w-44 sm:h-60 md:w-48 md:h-64',
 }
 
-export function CharacterCard({ character, selected, onSelect, size = 'md' }: CharacterCardProps) {
+export function CharacterCard({ character, selected, onSelect, size = 'md', sizeClassName }: CharacterCardProps) {
   return (
     <motion.button
       onClick={onSelect}
       className={cn(
         'relative overflow-hidden rounded-xl border-2 cursor-pointer focus:outline-none flex-shrink-0',
-        sizes[size],
+        sizeClassName ?? sizes[size],
         selected ? 'border-yellow-400' : 'border-gray-700 hover:border-gray-500'
       )}
       style={

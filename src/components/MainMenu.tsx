@@ -16,9 +16,101 @@ const fadeUp: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.4 } },
 }
 
-export function MainMenu({ onPlay }: MainMenuProps) {
+// ─── Mobile layout ───────────────────────────────────────────────────────────
+// Normal document flow: header → poster → actions → footer.
+// No content overlaid on the poster.
+
+function MobileMenu({ onPlay }: MainMenuProps) {
   return (
-    <div className="relative h-dvh flex flex-col overflow-hidden bg-black">
+    <div
+      className="sm:hidden flex flex-col bg-black h-dvh overflow-y-auto"
+      style={{
+        paddingTop:    'env(safe-area-inset-top)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
+      }}
+    >
+      {/* Header */}
+      <motion.div
+        className="flex-shrink-0 pt-5 pb-1 text-center"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+      >
+        <p className="text-[10px] uppercase tracking-[0.4em] text-yellow-400 font-bold">
+          S &amp; W Family Presents
+        </p>
+      </motion.div>
+
+      {/* Poster — fills remaining space, capped so actions always show */}
+      <div
+        className="relative flex-1 min-h-[200px] mx-0"
+        style={{ maxHeight: '62dvh' }}
+      >
+        <Image
+          src="/family-chaos-poster.png"
+          alt="S&W Family Chaos Parkour"
+          fill
+          className="object-contain"
+          priority
+        />
+      </div>
+
+      {/* Actions */}
+      <motion.div
+        className="flex-shrink-0 flex flex-col items-center px-6 pt-5 gap-0"
+        variants={stagger}
+        initial="hidden"
+        animate="show"
+      >
+        <motion.p
+          variants={fadeUp}
+          className="text-gray-400 text-[11px] uppercase tracking-[0.35em] font-semibold mb-5"
+        >
+          Run. Dodge. Trap. Win.
+        </motion.p>
+
+        {/* Primary CTA */}
+        <motion.button
+          variants={fadeUp}
+          onClick={onPlay}
+          className="w-full max-w-xs font-black text-lg uppercase tracking-widest text-black bg-yellow-400"
+          style={{ height: '64px', borderRadius: '20px' }}
+          whileHover={{ scale: 1.04, backgroundColor: '#fbbf24' }}
+          whileTap={{ scale: 0.97 }}
+        >
+          ▶ &nbsp;PLAY
+        </motion.button>
+
+        {/* Secondary buttons */}
+        <motion.div variants={fadeUp} className="flex w-full max-w-xs mt-4" style={{ gap: '14px' }}>
+          <button
+            className="flex-1 font-bold text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10 rounded-xl"
+            style={{ height: '56px' }}
+          >
+            How to Play
+          </button>
+          <button
+            className="flex-1 font-bold text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10 rounded-xl"
+            style={{ height: '56px' }}
+          >
+            Leaderboard
+          </button>
+        </motion.div>
+
+        <motion.p variants={fadeUp} className="text-gray-700 text-[10px] mt-4">
+          © S&amp;W Family Chaos Parkour
+        </motion.p>
+      </motion.div>
+    </div>
+  )
+}
+
+// ─── Desktop layout ───────────────────────────────────────────────────────────
+// Cinematic full-bleed poster with gradient overlay + bottom navigation.
+
+function DesktopMenu({ onPlay }: MainMenuProps) {
+  return (
+    <div className="hidden sm:flex flex-col relative h-dvh overflow-hidden bg-black">
       {/* Full-bleed poster */}
       <div className="absolute inset-0">
         <Image
@@ -28,7 +120,6 @@ export function MainMenu({ onPlay }: MainMenuProps) {
           className="object-cover object-center"
           priority
         />
-        {/* Gradient overlays for readability */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/95" />
         <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/20" />
       </div>
@@ -40,12 +131,11 @@ export function MainMenu({ onPlay }: MainMenuProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
       >
-        <p className="text-[10px] sm:text-xs uppercase tracking-[0.4em] text-yellow-400 font-bold">
-          S & W Family Presents
+        <p className="text-xs uppercase tracking-[0.4em] text-yellow-400 font-bold">
+          S &amp; W Family Presents
         </p>
       </motion.div>
 
-      {/* Push nav to bottom */}
       <div className="flex-1" />
 
       {/* Bottom navigation */}
@@ -57,36 +147,45 @@ export function MainMenu({ onPlay }: MainMenuProps) {
       >
         <motion.p
           variants={fadeUp}
-          className="text-gray-400 text-[11px] sm:text-xs uppercase tracking-[0.35em] font-semibold"
+          className="text-gray-400 text-xs uppercase tracking-[0.35em] font-semibold"
         >
           Run. Dodge. Trap. Win.
         </motion.p>
 
-        {/* Primary CTA */}
         <motion.button
           variants={fadeUp}
           onClick={onPlay}
-          className="w-full max-w-xs py-4 rounded-2xl font-black text-lg sm:text-xl uppercase tracking-widest text-black bg-yellow-400 relative overflow-hidden"
+          className="w-full max-w-xs py-4 rounded-2xl font-black text-xl uppercase tracking-widest text-black bg-yellow-400 relative overflow-hidden"
           whileHover={{ scale: 1.04, backgroundColor: '#fbbf24' }}
           whileTap={{ scale: 0.97 }}
         >
           ▶ &nbsp;PLAY
         </motion.button>
 
-        {/* Secondary buttons */}
         <motion.div variants={fadeUp} className="flex gap-3 w-full max-w-xs">
-          <button className="flex-1 py-3 rounded-xl font-bold text-xs sm:text-sm uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10">
+          <button className="flex-1 py-3 rounded-xl font-bold text-sm uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10">
             How to Play
           </button>
-          <button className="flex-1 py-3 rounded-xl font-bold text-xs sm:text-sm uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10">
+          <button className="flex-1 py-3 rounded-xl font-bold text-sm uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10">
             Leaderboard
           </button>
         </motion.div>
 
         <motion.p variants={fadeUp} className="text-gray-700 text-[10px] pt-1">
-          © S&W Family Chaos Parkour
+          © S&amp;W Family Chaos Parkour
         </motion.p>
       </motion.div>
     </div>
+  )
+}
+
+// ─── Exported component ───────────────────────────────────────────────────────
+
+export function MainMenu({ onPlay }: MainMenuProps) {
+  return (
+    <>
+      <MobileMenu  onPlay={onPlay} />
+      <DesktopMenu onPlay={onPlay} />
+    </>
   )
 }
