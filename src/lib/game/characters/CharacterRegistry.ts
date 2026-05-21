@@ -28,7 +28,7 @@ export interface CharacterEntry {
 }
 
 function assetPath(id: string) {
-  const base = `/game-assets/characters/${id}`
+  const base = `/game-assets/characters-normalized/${id}`
   return {
     card:    `${base}/${id}-card.png`,
     avatar:  `${base}/${id}-avatar.png`,

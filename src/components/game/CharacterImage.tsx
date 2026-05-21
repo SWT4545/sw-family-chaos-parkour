@@ -36,11 +36,10 @@ function DebugOverlay({ offsetX, offsetY, anchorX, anchorY, scale }: DebugOverla
 }
 
 export interface CharacterImageProps extends Partial<AssetAlignment> {
-  src:           string
-  alt:           string
-  priority?:     boolean
-  sizes?:        string
-  objectPosition?: string   // CSS object-position on the Image
+  src:       string
+  alt:       string
+  priority?: boolean
+  sizes?:    string
 }
 
 /**
@@ -56,7 +55,6 @@ export function CharacterImage({
   anchorY  = 0.5,
   priority = false,
   sizes,
-  objectPosition = 'center top',
 }: CharacterImageProps) {
   const { transform, transformOrigin } = alignmentToCSS({ offsetX, offsetY, scale, anchorX, anchorY })
 
@@ -71,8 +69,7 @@ export function CharacterImage({
           src={src}
           alt={alt}
           fill
-          className="object-cover"
-          style={{ objectPosition }}
+          className="object-contain"
           priority={priority}
           sizes={sizes ?? '(max-width: 640px) 160px, 240px'}
         />

@@ -8,11 +8,13 @@ export interface AssetAlignment {
   anchorY:  number   // scale/rotate pivot, 0-1 (0 = top,  0.5 = center, 1 = bottom)
 }
 
+// All offsets reset to neutral — normalized assets are pre-cropped and centered.
+// Adjust per-character here if fine-tuning is needed after visual review.
 export const CHARACTER_ALIGNMENT: Record<CharacterId, AssetAlignment> = {
-  commander: { offsetX: 0,   offsetY: -12, scale: 1.00, anchorX: 0.5, anchorY: 0.5 },
-  bj:        { offsetX: 18,  offsetY: -6,  scale: 0.95, anchorX: 0.5, anchorY: 0.5 },
-  brae:      { offsetX: -10, offsetY: -4,  scale: 1.02, anchorX: 0.5, anchorY: 0.5 },
-  xanny:     { offsetX: 8,   offsetY: 0,   scale: 0.92, anchorX: 0.5, anchorY: 0.5 },
+  commander: { offsetX: 0, offsetY: 0, scale: 1, anchorX: 0.5, anchorY: 0.5 },
+  bj:        { offsetX: 0, offsetY: 0, scale: 1, anchorX: 0.5, anchorY: 0.5 },
+  brae:      { offsetX: 0, offsetY: 0, scale: 1, anchorX: 0.5, anchorY: 0.5 },
+  xanny:     { offsetX: 0, offsetY: 0, scale: 1, anchorX: 0.5, anchorY: 0.5 },
 }
 
 /** Returns the CSS transform and transformOrigin strings for a given alignment. */
