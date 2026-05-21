@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Map, Users, Zap } from 'lucide-react'
 import { Character } from '@/types/player'
+import { CharacterImage } from '@/components/game/CharacterImage'
+import { CHARACTER_ALIGNMENT } from '@/lib/game/assets/AssetRegistry'
 
 const MAPS = [
   { id: 'rooftop', name: 'Rooftop Mayhem', desc: 'Urban skyline chaos' },
@@ -21,15 +23,14 @@ interface FamilyLobbyProps {
 function CharacterPortrait({ character }: { character: Character }) {
   return (
     <div className="flex flex-col items-center gap-2">
-      <div
-        className="w-32 h-44 sm:w-40 sm:h-56 rounded-xl"
-        style={{
-          backgroundImage: 'url(/family-chaos-character-sheet.png)',
-          backgroundSize: '500% auto',
-          backgroundPosition: `${character.bgX} ${character.bgY}`,
-          backgroundRepeat: 'no-repeat',
-        }}
-      />
+      <div className="relative w-32 h-44 sm:w-40 sm:h-56 rounded-xl overflow-hidden">
+        <CharacterImage
+          src={character.assets.full}
+          alt={character.name}
+          {...CHARACTER_ALIGNMENT[character.id]}
+          sizes="(max-width: 640px) 128px, 160px"
+        />
+      </div>
       <div className="text-center">
         <p
           className="text-[10px] uppercase tracking-widest font-bold"
@@ -56,7 +57,7 @@ export function FamilyLobby({ player1, player2, onStartMatch, onSelectP2, onBack
   const map = MAPS[mapIndex]
 
   return (
-    <div className="relative min-h-screen bg-[#080808] flex flex-col overflow-hidden">
+    <div className="relative h-dvh bg-[#080808] flex flex-col overflow-hidden">
       {/* Background */}
       <div
         className="absolute inset-0 opacity-[0.1]"
@@ -95,11 +96,11 @@ export function FamilyLobby({ player1, player2, onStartMatch, onSelectP2, onBack
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center gap-5 px-5 pb-8">
 
         {/* Players row */}
-        <div className="flex items-center gap-5 sm:gap-10 w-full max-w-2xl">
+        <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-10 w-full max-w-2xl">
 
           {/* Player 1 */}
           <div
-            className="flex-1 rounded-2xl p-4 backdrop-blur-sm border text-center"
+            className="w-full sm:flex-1 rounded-2xl p-4 backdrop-blur-sm border text-center"
             style={{
               backgroundColor: 'rgba(10,10,10,0.85)',
               borderColor: `${player1.color}30`,
@@ -112,16 +113,18 @@ export function FamilyLobby({ player1, player2, onStartMatch, onSelectP2, onBack
           </div>
 
           {/* VS */}
-          <div className="flex-shrink-0">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-red-600 border-4 border-red-400/50 flex items-center justify-center">
-              <span className="font-black text-white text-sm sm:text-xl leading-none">VS</span>
+          <div className="flex-shrink-0 flex flex-row sm:flex-col items-center gap-2">
+            <div className="hidden sm:block w-px h-6 bg-gray-700" />
+            <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-full bg-red-600 border-4 border-red-400/50 flex items-center justify-center">
+              <span className="font-black text-white text-xs sm:text-xl leading-none">VS</span>
             </div>
+            <div className="hidden sm:block w-px h-6 bg-gray-700" />
           </div>
 
           {/* Player 2 */}
           {player2 ? (
             <div
-              className="flex-1 rounded-2xl p-4 backdrop-blur-sm border text-center"
+              className="w-full sm:flex-1 rounded-2xl p-4 backdrop-blur-sm border text-center"
               style={{
                 backgroundColor: 'rgba(10,10,10,0.85)',
                 borderColor: `${player2.color}30`,
@@ -134,14 +137,14 @@ export function FamilyLobby({ player1, player2, onStartMatch, onSelectP2, onBack
             </div>
           ) : (
             <div
-              className="flex-1 rounded-2xl p-4 backdrop-blur-sm border border-dashed border-gray-700/40 text-center"
+              className="w-full sm:flex-1 rounded-2xl p-4 backdrop-blur-sm border border-dashed border-gray-700/40 text-center"
               style={{ backgroundColor: 'rgba(10,10,10,0.6)' }}
             >
               <p className="text-[10px] uppercase tracking-widest text-gray-600 font-bold mb-3">
                 Player 2
               </p>
               <div className="flex flex-col items-center gap-3">
-                <div className="w-32 h-44 sm:w-40 sm:h-56 rounded-xl bg-gray-800/40 flex items-center justify-center">
+                <div className="w-32 h-44 sm:w-40 sm:h-56 rounded-xl bg-gray-800/40 flex items-center justify-center overflow-hidden">
                   <Users size={32} className="text-gray-600" />
                 </div>
                 {onSelectP2 && (

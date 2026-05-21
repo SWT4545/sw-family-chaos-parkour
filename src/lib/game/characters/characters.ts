@@ -1,48 +1,14 @@
-import { Character } from '@/types/player'
+import { CHARACTERS_LIST } from './CharacterRegistry'
+import type { Character } from '@/types/player'
 
-export const CHARACTERS: Character[] = [
-  {
-    id: 'commander',
-    name: 'The Commander',
-    role: 'Dad',
-    tagline: 'The Plan. The Crew. The Legend.',
-    ability: 'COMMAND BOOST',
-    abilityDesc: 'Leads strategy and keeps the crew in check for the whole team.',
-    color: '#dc2626',
-    bgX: '17%',
-    bgY: '0%',
-  },
-  {
-    id: 'bj',
-    name: 'BJ',
-    role: '18 Years Old',
-    tagline: 'Set the Traps. Control the Chaos.',
-    ability: 'CHAOS TRIGGER',
-    abilityDesc: 'Turns the course into pure mayhem. Activates all traps in his path.',
-    color: '#f59e0b',
-    bgX: '43%',
-    bgY: '0%',
-  },
-  {
-    id: 'brae',
-    name: 'Brae',
-    role: '14 Years Old',
-    tagline: 'Clever. Quick. Full of Tricks.',
-    ability: 'TRICK SHOT',
-    abilityDesc: 'Outsmarks everyone and turns anything into an advantage.',
-    color: '#8b5cf6',
-    bgX: '68%',
-    bgY: '0%',
-  },
-  {
-    id: 'xanny',
-    name: 'Xanny',
-    role: '8 Years Old',
-    tagline: 'Fast. Smooth. Unstoppable.',
-    ability: 'TURBO DASH',
-    abilityDesc: 'Short burst of extreme speed. Never slows down.',
-    color: '#06b6d4',
-    bgX: '92%',
-    bgY: '0%',
-  },
-]
+export const CHARACTERS: Character[] = CHARACTERS_LIST.map((entry) => ({
+  id:           entry.id,
+  name:         entry.displayName,
+  role:         entry.role,
+  tagline:      entry.tagline,
+  ability:      entry.abilityName,
+  abilityDesc:  entry.abilityDescription,
+  color:        entry.primaryColor,
+  assets:       entry.assets,
+  movementStats: entry.movementStats,
+}))

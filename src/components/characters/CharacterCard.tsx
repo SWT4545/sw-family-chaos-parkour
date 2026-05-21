@@ -1,6 +1,8 @@
 'use client'
 import { motion } from 'framer-motion'
 import { Character } from '@/types/player'
+import { CharacterImage } from '@/components/game/CharacterImage'
+import { CHARACTER_ALIGNMENT } from '@/lib/game/assets/AssetRegistry'
 import { cn } from '@/lib/utils'
 
 interface CharacterCardProps {
@@ -11,9 +13,9 @@ interface CharacterCardProps {
 }
 
 const sizes = {
-  sm: 'w-32 h-44',
-  md: 'w-40 h-56',
-  lg: 'w-48 h-64 sm:w-52 sm:h-72',
+  sm: 'w-24 h-36 sm:w-32 sm:h-44',
+  md: 'w-32 h-44 sm:w-40 sm:h-56',
+  lg: 'w-36 h-52 sm:w-44 sm:h-60 md:w-48 md:h-64',
 }
 
 export function CharacterCard({ character, selected, onSelect, size = 'md' }: CharacterCardProps) {
@@ -22,6 +24,7 @@ export function CharacterCard({ character, selected, onSelect, size = 'md' }: Ch
       onClick={onSelect}
       className={cn(
         'relative overflow-hidden rounded-xl border-2 cursor-pointer focus:outline-none flex-shrink-0',
+        sizes[size],
         selected ? 'border-yellow-400' : 'border-gray-700 hover:border-gray-500'
       )}
       style={
@@ -33,14 +36,13 @@ export function CharacterCard({ character, selected, onSelect, size = 'md' }: Ch
       whileTap={{ scale: 0.97 }}
       transition={{ type: 'spring', stiffness: 380, damping: 24 }}
     >
-      {/* Portrait crop from character sheet */}
-      <div
-        className={cn('bg-no-repeat', sizes[size])}
-        style={{
-          backgroundImage: 'url(/family-chaos-character-sheet.png)',
-          backgroundSize: '500% auto',
-          backgroundPosition: `${character.bgX} ${character.bgY}`,
-        }}
+      {/* Character card art — aligned via registry */}
+      <CharacterImage
+        src={character.assets.card}
+        alt={character.name}
+        {...CHARACTER_ALIGNMENT[character.id]}
+        sizes="(max-width: 640px) 144px, 192px"
+        priority={selected}
       />
 
       {/* Bottom gradient */}

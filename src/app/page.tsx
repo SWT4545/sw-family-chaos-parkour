@@ -1,13 +1,17 @@
 'use client'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { preloadGameAssets } from '@/lib/game/assets/preloadAssets'
 import { MainMenu } from '@/components/MainMenu'
 import { CharacterSelect } from '@/components/characters/CharacterSelect'
 import { FamilyLobby } from '@/components/lobby/FamilyLobby'
 import { GameCanvas } from '@/components/game/GameCanvas'
 import { GameHUD } from '@/components/hud/GameHUD'
+import { TrapHUD } from '@/components/game/TrapHUD'
+import { TouchControls } from '@/components/game/TouchControls'
 import { VictoryScreen } from '@/components/screens/VictoryScreen'
 import { Character, GameScreen } from '@/types/player'
+import { ChaosState, defaultChaosState } from '@/types/chaos'
 
 const slide = {
   initial:    { opacity: 0, scale: 0.98 },
@@ -29,13 +33,19 @@ export default function Home() {
     else                    { setPlayer2(char); setScreen('lobby') }
   }
 
+  // Shared chaos state ref — GameCanvas writes, TrapHUD polls
+  const chaosRef = useRef<ChaosState>(defaultChaosState())
+
+  // Kick off asset preload as soon as the app mounts
+  useEffect(() => { preloadGameAssets() }, [])
+
   const handleVictory = useCallback((winnerId: 1 | 2, time: number) => {
     setVictoryData({ winnerId, time })
     setScreen('victory')
   }, [])
 
   return (
-    <div className="min-h-screen bg-black overflow-hidden">
+    <div className="h-dvh bg-black overflow-hidden">
       <AnimatePresence mode="wait">
 
         {/* ── Main Menu ── */}
@@ -82,7 +92,7 @@ export default function Home() {
           <motion.div
             key="game"
             {...slide}
-            className="relative min-h-screen bg-[#060610] flex items-center justify-center"
+            className="relative h-dvh bg-[#060610] flex items-center justify-center"
           >
             <div className="relative w-full max-w-[960px] aspect-video">
               <GameCanvas
@@ -90,12 +100,19 @@ export default function Home() {
                 player2={player2}
                 matchStartTime={matchStartTime}
                 onVictory={handleVictory}
+                chaosRef={chaosRef}
               />
               <GameHUD
                 player1={player1}
                 player2={player2}
                 matchStartTime={matchStartTime}
               />
+              <TrapHUD
+                player1={player1}
+                player2={player2}
+                chaosRef={chaosRef}
+              />
+              <TouchControls />
             </div>
           </motion.div>
         )}

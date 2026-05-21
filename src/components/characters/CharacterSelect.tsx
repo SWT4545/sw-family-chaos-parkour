@@ -16,7 +16,7 @@ export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: Characte
   const [focused, setFocused] = useState<Character>(CHARACTERS[0])
 
   return (
-    <div className="relative min-h-screen bg-[#080808] flex flex-col overflow-hidden">
+    <div className="relative h-dvh bg-[#080808] flex flex-col overflow-hidden">
       {/* Blurred poster bg */}
       <div
         className="absolute inset-0 opacity-[0.08]"
@@ -64,7 +64,7 @@ export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: Characte
       {/* Cards + detail */}
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-6 px-4 py-4">
         {/* Character cards */}
-        <div className="flex gap-3 sm:gap-4 flex-wrap justify-center">
+        <div className="grid grid-cols-2 sm:flex gap-3 sm:gap-4 sm:flex-wrap justify-center">
           {CHARACTERS.map((char) => (
             <CharacterCard
               key={char.id}

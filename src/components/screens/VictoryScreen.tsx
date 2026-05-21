@@ -2,20 +2,8 @@
 import { motion } from 'framer-motion'
 import { Trophy, RotateCcw, ArrowLeft } from 'lucide-react'
 import { Character } from '@/types/player'
-
-const CHAR_COLORS: Record<string, string> = {
-  commander: '#dc2626',
-  bj:        '#f59e0b',
-  brae:      '#8b5cf6',
-  xanny:     '#06b6d4',
-}
-
-const SHEET_POS: Record<string, string> = {
-  commander: '17% 0%',
-  bj:        '43% 0%',
-  brae:      '68% 0%',
-  xanny:     '92% 0%',
-}
+import { CharacterImage } from '@/components/game/CharacterImage'
+import { CHARACTER_ALIGNMENT } from '@/lib/game/assets/AssetRegistry'
 
 function fmtTime(s: number) {
   const m = Math.floor(s / 60)
@@ -32,11 +20,11 @@ interface Props {
 }
 
 export function VictoryScreen({ winner, loser, time, onPlayAgain, onBackToLobby }: Props) {
-  const winColor = winner ? (CHAR_COLORS[winner.id] ?? '#eab308') : '#eab308'
+  const winColor = winner?.color ?? '#eab308'
 
   return (
-    <div className="relative min-h-screen bg-[#050508] flex items-center justify-center overflow-hidden">
-      {/* Poster bg */}
+    <div className="relative h-dvh bg-[#050508] flex items-center justify-center overflow-hidden">
+      {/* Cover bg — blurred */}
       <div
         className="absolute inset-0 opacity-[0.18]"
         style={{
@@ -48,7 +36,7 @@ export function VictoryScreen({ winner, loser, time, onPlayAgain, onBackToLobby 
         }}
       />
 
-      {/* Radial winner glow */}
+      {/* Winner color glow */}
       <div
         className="absolute inset-0"
         style={{ background: `radial-gradient(ellipse at center, ${winColor}1a 0%, transparent 65%)` }}
@@ -87,24 +75,29 @@ export function VictoryScreen({ winner, loser, time, onPlayAgain, onBackToLobby 
           )}
         </motion.div>
 
-        {/* Winner portrait */}
+        {/* Winner victory art */}
         {winner && (
           <motion.div
             initial={{ opacity: 0, scale: 0.88 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.4, delay: 0.4 }}
-            className="w-36 h-48 rounded-2xl border-2 overflow-hidden"
+            className="relative w-36 h-48 rounded-2xl border-2 overflow-hidden"
             style={{
-              backgroundImage: 'url(/family-chaos-character-sheet.png)',
-              backgroundSize: '500% auto',
-              backgroundPosition: SHEET_POS[winner.id] ?? '0% 0%',
               borderColor: winColor,
               boxShadow: `0 0 32px ${winColor}55`,
             }}
-          />
+          >
+            <CharacterImage
+              src={winner.assets.victory}
+              alt={`${winner.name} victory`}
+              {...CHARACTER_ALIGNMENT[winner.id]}
+              sizes="144px"
+              priority
+            />
+          </motion.div>
         )}
 
-        {/* Stats */}
+        {/* Finish time */}
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

@@ -18,7 +18,7 @@ const fadeUp: Variants = {
 
 export function MainMenu({ onPlay }: MainMenuProps) {
   return (
-    <div className="relative min-h-screen flex flex-col overflow-hidden bg-black">
+    <div className="relative h-dvh flex flex-col overflow-hidden bg-black">
       {/* Full-bleed poster */}
       <div className="absolute inset-0">
         <Image
