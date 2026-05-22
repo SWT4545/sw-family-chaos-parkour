@@ -9,8 +9,14 @@ import { TRAP_REGISTRY, CHAR_TRAP } from '@/lib/game/traps/TrapRegistry'
 import { POWERUP_REGISTRY, POWERUP_SPAWNS, POWERUP_RESPAWN_MS, POWERUP_IDS } from '@/lib/game/powerups/PowerupRegistry'
 import type { TrapId } from '@/lib/game/traps/TrapRegistry'
 import type { PowerupId } from '@/lib/game/powerups/PowerupRegistry'
-import { CHARACTER_ALIGNMENT, applyCanvasAlignment } from '@/lib/game/assets/AssetRegistry'
+
 import { burst, updateParticles, drawParticles } from '@/lib/game/effects/Particles'
+import {
+  loadCharacterImage,
+  drawCharacter,
+  drawGhost,
+} from '@/lib/game/renderers/characterRenderer'
+import { emitCharacterParticles } from '@/lib/game/renderers/particleRenderer'
 import type { Particle } from '@/lib/game/effects/Particles'
 import {
   spawnTacoRain, updateTacos, drawTaco,
@@ -134,9 +140,9 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
     if (!canvas) return
     const ctx = canvas.getContext('2d')!
 
-    // ── Character images ─────────────────────────────────────────
-    const p1Img = (() => { const i = new Image(); i.src = player1.assets.full; return i })()
-    const p2Img = player2 ? (() => { const i = new Image(); i.src = player2.assets.full; return i })() : null
+    // ── Character images (shared cache — load once, no re-decode) ─
+    loadCharacterImage(player1.id)
+    if (player2) loadCharacterImage(player2.id)
 
     // ── Movement stats ───────────────────────────────────────────
     const p1Base = player1.movementStats
@@ -215,6 +221,13 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
     let gameOver = false
     let camX = 0, camY = 0
     let lastT = performance.now()
+
+    // ── Animation state ───────────────────────────────────────────
+    let p1Anim = 0, p2Anim = 0
+    let p1LandSquashT = 0, p2LandSquashT = 0
+    let p1WasGrounded = true, p2WasGrounded = true
+    let p1Facing: 'left' | 'right' = 'right'
+    let p2Facing: 'left' | 'right' = 'right'
 
     // ── Chaos state ───────────────────────────────────────────────
     const activeTrapEntities: TrapEntity[] = []
@@ -803,87 +816,6 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       }
     }
 
-    function drawPlayer(body: Matter.Body, char: Character, img: HTMLImageElement | null, label: string, effect: EffectState | null, now: number) {
-      const { x, y } = body.position
-      const color = char.color
-
-      // Effect tint
-      let tintAlpha = 0, tintColor = '#fff'
-      if (effect?.type === 'bear_trap'   && effect.endsAt > now) { tintColor = '#60a5fa'; tintAlpha = 0.45 }
-      if (effect?.type === 'slime_puddle' && effect.endsAt > now) { tintColor = '#22c55e'; tintAlpha = 0.35 }
-
-      // Drop shadow
-      ctx.save(); ctx.globalAlpha = 0.22; ctx.fillStyle = '#000'
-      ctx.beginPath(); ctx.ellipse(x, y + PLAYER_H / 2 + 3, PLAYER_W / 2 - 2, 5, 0, 0, Math.PI * 2); ctx.fill()
-      ctx.restore()
-
-      // Sprite or color fallback (with registry alignment)
-      ctx.save()
-      ctx.beginPath(); ctx.rect(x - PLAYER_W / 2, y - PLAYER_H / 2, PLAYER_W, PLAYER_H); ctx.clip()
-      if (img && img.complete && img.naturalWidth > 0) {
-        const align = CHARACTER_ALIGNMENT[char.id]
-        ctx.save()
-        applyCanvasAlignment(ctx, x, y, PLAYER_W, PLAYER_H, align)
-        ctx.drawImage(img, x - PLAYER_W / 2, y - PLAYER_H / 2, PLAYER_W, PLAYER_H)
-        ctx.restore()
-      } else {
-        ctx.fillStyle = color; ctx.fillRect(x - PLAYER_W / 2, y - PLAYER_H / 2, PLAYER_W, PLAYER_H)
-        ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(x - PLAYER_W / 2, y - PLAYER_H / 2, PLAYER_W, 7)
-      }
-      // Effect tint overlay
-      if (tintAlpha > 0) {
-        ctx.fillStyle = tintColor; ctx.globalAlpha = tintAlpha
-        ctx.fillRect(x - PLAYER_W / 2, y - PLAYER_H / 2, PLAYER_W, PLAYER_H)
-      }
-      ctx.restore()
-
-      // Freeze ice cracks
-      if (effect?.type === 'bear_trap' && effect.endsAt > now) {
-        ctx.save(); ctx.strokeStyle = '#93c5fd'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.7
-        for (let i = 0; i < 4; i++) {
-          ctx.beginPath()
-          ctx.moveTo(x, y)
-          ctx.lineTo(x + (Math.cos(i * 1.57) * 20), y + (Math.sin(i * 1.57) * 25))
-          ctx.stroke()
-        }
-        ctx.restore()
-      }
-
-      // Border
-      ctx.strokeStyle = color; ctx.lineWidth = 2
-      ctx.strokeRect(x - PLAYER_W / 2, y - PLAYER_H / 2, PLAYER_W, PLAYER_H)
-
-      // Name tag
-      ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'
-      const tw = Math.max(ctx.measureText(label).width, ctx.measureText(char.name).width) + 8
-      ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(x - tw / 2, y - PLAYER_H / 2 - 18, tw, 15)
-      ctx.fillStyle = color; ctx.fillText(char.name, x, y - PLAYER_H / 2 - 5)
-
-      // Alignment debug overlay
-      if (process.env.NEXT_PUBLIC_DEBUG_IMAGE_ALIGNMENT === 'true') {
-        const align = CHARACTER_ALIGNMENT[char.id]
-        const ax = x + (align.anchorX - 0.5) * PLAYER_W
-        const ay = y + (align.anchorY - 0.5) * PLAYER_H
-        ctx.save()
-        // Bounding box
-        ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 1; ctx.setLineDash([2, 2])
-        ctx.strokeRect(x - PLAYER_W / 2, y - PLAYER_H / 2, PLAYER_W, PLAYER_H)
-        ctx.setLineDash([])
-        // Center cross
-        ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 0.8
-        ctx.beginPath(); ctx.moveTo(x - 6, y); ctx.lineTo(x + 6, y); ctx.stroke()
-        ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.lineTo(x, y + 6); ctx.stroke()
-        // Anchor dot
-        ctx.fillStyle = '#60a5fa'
-        ctx.beginPath(); ctx.arc(ax, ay, 2.5, 0, Math.PI * 2); ctx.fill()
-        // Offset label
-        ctx.font = '6px monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'
-        ctx.fillStyle = '#ef4444'
-        ctx.fillText(`x${align.offsetX} y${align.offsetY} s${align.scale}`, x - PLAYER_W / 2, y + PLAYER_H / 2 + 2)
-        ctx.restore()
-      }
-    }
-
     function drawEffectOverlays(now: number) {
       // Chaos blind strobe
       if (now < chaosBlindEndsAt) {
@@ -962,8 +894,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
     }
 
     // ── Online sync helpers ────────────────────────────────────────
-    const remoteImgCache = new Map<string, HTMLImageElement>()
-    let syncTickCounter  = 0
+    let syncTickCounter = 0
 
     // ── Main loop ──────────────────────────────────────────────────
     let rafId = 0
@@ -1004,6 +935,38 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
 
       const p1g = p1Gnd.size > 0
       const p2g = p2Gnd.size > 0
+
+      // ── Animation tick + landing detection ──────────────────
+      p1Anim++
+      p2Anim++
+      if (p1Body.velocity.x < -0.5) p1Facing = 'left'
+      else if (p1Body.velocity.x > 0.5) p1Facing = 'right'
+      if (p2Body) {
+        if (p2Body.velocity.x < -0.5) p2Facing = 'left'
+        else if (p2Body.velocity.x > 0.5) p2Facing = 'right'
+      }
+      if (!p1WasGrounded && p1g) p1LandSquashT = nowMs
+      if (!p2WasGrounded && p2g) p2LandSquashT = nowMs
+      p1WasGrounded = p1g
+      p2WasGrounded = p2g
+
+      // ── Character particles ──────────────────────────────────
+      const p1FootY = p1Body.position.y + PLAYER_H / 2
+      particles.push(...emitCharacterParticles({
+        characterId: player1.id,
+        x: p1Body.position.x, y: p1Body.position.y, footY: p1FootY,
+        vx: p1Body.velocity.x, vy: p1Body.velocity.y,
+        grounded: p1g, anim: p1Anim,
+      }))
+      if (p2Body && player2) {
+        const p2FootY = p2Body.position.y + PLAYER_H / 2
+        particles.push(...emitCharacterParticles({
+          characterId: player2.id,
+          x: p2Body.position.x, y: p2Body.position.y, footY: p2FootY,
+          vx: p2Body.velocity.x, vy: p2Body.velocity.y,
+          grounded: p2g, anim: p2Anim,
+        }))
+      }
 
       const p1MaxJ = p1PowerEffect?.type === 'double_jump' ? MAX_JUMPS + 1 : MAX_JUMPS
       const p2MaxJ = p2PowerEffect?.type === 'double_jump' ? MAX_JUMPS + 1 : MAX_JUMPS
@@ -1076,33 +1039,33 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       for (const taco of tacos) drawTaco(ctx, taco)
       // Remote ghost players (online mode)
       for (const ghost of remoteGhostsRef.current) {
-        const gx = ghost.state.x; const gy = ghost.state.y
-        // Load image lazily
-        if (!remoteImgCache.has(ghost.character.id)) {
-          const gi = new Image(); gi.src = ghost.character.assets.full
-          remoteImgCache.set(ghost.character.id, gi)
-        }
-        const gi = remoteImgCache.get(ghost.character.id)!
-        ctx.save(); ctx.globalAlpha = 0.55
-        ctx.beginPath(); ctx.rect(gx - PLAYER_W / 2, gy - PLAYER_H / 2, PLAYER_W, PLAYER_H); ctx.clip()
-        if (gi.complete && gi.naturalWidth > 0) {
-          applyCanvasAlignment(ctx, gx, gy, PLAYER_W, PLAYER_H, CHARACTER_ALIGNMENT[ghost.character.id])
-          ctx.drawImage(gi, gx - PLAYER_W / 2, gy - PLAYER_H / 2, PLAYER_W, PLAYER_H)
-        } else {
-          ctx.fillStyle = ghost.character.color
-          ctx.fillRect(gx - PLAYER_W / 2, gy - PLAYER_H / 2, PLAYER_W, PLAYER_H)
-        }
-        ctx.restore()
-        ctx.strokeStyle = ghost.character.color; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.55
-        ctx.strokeRect(gx - PLAYER_W / 2, gy - PLAYER_H / 2, PLAYER_W, PLAYER_H)
-        ctx.globalAlpha = 1
-        ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'
-        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(gx - 22, gy - PLAYER_H / 2 - 18, 44, 14)
-        ctx.fillStyle = ghost.character.color; ctx.fillText(ghost.name, gx, gy - PLAYER_H / 2 - 5)
+        loadCharacterImage(ghost.character.id)
+        drawGhost(ctx, ghost.character.id, ghost.character.color, ghost.name,
+          ghost.state.x, ghost.state.y, ghost.state.facing)
       }
-      // Players
-      if (p2Body && player2) drawPlayer(p2Body, player2, p2Img, 'P2', p2TrapEffect ?? p2PowerEffect, nowMs)
-      drawPlayer(p1Body, player1, p1Img, 'P1', p1TrapEffect ?? p1PowerEffect, nowMs)
+      // Players — PNG renderer with animation
+      if (p2Body && player2) {
+        const p2fx = p2TrapEffect ?? p2PowerEffect
+        drawCharacter(ctx, {
+          x: p2Body.position.x, y: p2Body.position.y,
+          vx: p2Body.velocity.x, vy: p2Body.velocity.y,
+          grounded: p2g, facing: p2Facing,
+          anim: p2Anim, landSquashT: p2LandSquashT,
+          characterId: player2.id, color: player2.color, name: player2.name,
+          effectType: p2fx?.type ?? null, effectEndsAt: p2fx?.endsAt ?? 0,
+          now: nowMs,
+        })
+      }
+      drawCharacter(ctx, {
+        x: p1Body.position.x, y: p1Body.position.y,
+        vx: p1Body.velocity.x, vy: p1Body.velocity.y,
+        grounded: p1g, facing: p1Facing,
+        anim: p1Anim, landSquashT: p1LandSquashT,
+        characterId: player1.id, color: player1.color, name: player1.name,
+        effectType: (p1TrapEffect ?? p1PowerEffect)?.type ?? null,
+        effectEndsAt: (p1TrapEffect ?? p1PowerEffect)?.endsAt ?? 0,
+        now: nowMs,
+      })
       // Particles (world-space)
       drawParticles(ctx, particles)
       ctx.restore()
