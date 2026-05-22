@@ -1,7 +1,17 @@
 import type { CharacterAssets, MovementStats } from '@/lib/game/characters/CharacterRegistry'
 
 export type CharacterId = 'commander' | 'bj' | 'brae' | 'xanny'
-export type GameScreen = 'main-menu' | 'character-select' | 'lobby' | 'game' | 'victory'
+export type GameMode   = 'solo' | '1v1' | 'online'
+export type GameScreen =
+  | 'main-menu'
+  | 'mode-select'
+  | 'character-select'
+  | 'lobby'
+  | 'game'
+  | 'victory'
+  | 'solo-victory'
+  | 'leaderboard'
+  | 'daily-challenges'
 
 export interface Character {
   id:           CharacterId

@@ -45,4 +45,27 @@ export const ROOFTOP_TEST: MapDef = {
     { id: 2, x: 2777, y: 332 },
     { id: 3, x: 3532, y: 318 },
   ],
+
+  // Collectible coins — placed above platforms throughout the course
+  coinPositions: [
+    { x: 510,  y: 590 }, { x: 730,  y: 562 }, { x: 960,  y: 534 },
+    { x: 1200, y: 502 }, { x: 1460, y: 465 },
+    { x: 1720, y: 436 }, { x: 1960, y: 408 },
+    { x: 2200, y: 378 }, { x: 2500, y: 348 },
+    { x: 2750, y: 328 }, { x: 3060, y: 365 },
+    { x: 3300, y: 340 }, { x: 3510, y: 314 },
+    { x: 3760, y: 330 }, { x: 4050, y: 312 },
+  ],
+
+  // Solo mode — pre-placed map hazards
+  soloHazards: [
+    { trapId: 'banana_peel',  x: 560,  y: 608 },
+    { trapId: 'slime_puddle', x: 920,  y: 570 },
+    { trapId: 'bear_trap',    x: 1250, y: 518 },
+    { trapId: 'giant_fan',    x: 1800, y: 448 },
+    { trapId: 'banana_peel',  x: 2300, y: 388 },
+    { trapId: 'slime_puddle', x: 2720, y: 342 },
+    { trapId: 'bear_trap',    x: 3150, y: 354 },
+    { trapId: 'giant_fan',    x: 3680, y: 338 },
+  ],
 }

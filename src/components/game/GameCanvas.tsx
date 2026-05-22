@@ -17,6 +17,7 @@ import {
   TACO_RAIN_MIN_MS, TACO_RAIN_MAX_MS, TACO_RADIUS,
 } from '@/lib/game/events/tacoRain'
 import type { TacoEntity } from '@/lib/game/events/tacoRain'
+import { getAudioSettings } from '@/lib/game/audio/AudioSettings'
 
 // ── Canvas / physics constants ──────────────────────────────────
 const CANVAS_W  = 960
@@ -30,13 +31,21 @@ const MATCH_SECS = 8 * 60
 // ── Chaos entity types ──────────────────────────────────────────
 let _trapSeq = 0
 interface TrapEntity {
-  uid:       number
-  trapId:    TrapId
+  uid:          number
+  trapId:       TrapId
+  x:            number; y: number
+  owner:        1 | 2
+  expiresAt:    number
+  triggered:    boolean   // one-shot traps consumed on first hit
+  w:            number; h: number
+  isSoloHazard: boolean   // permanent map obstacle; resets after cooldown
+  resetAt:      number    // ms timestamp when to un-trigger (0 = not pending)
+}
+
+interface CoinEntity {
+  id:        number
   x:         number; y: number
-  owner:     1 | 2
-  expiresAt: number
-  triggered: boolean  // one-shot traps consumed on first hit
-  w:         number; h: number
+  collected: boolean
 }
 
 interface EffectState {
@@ -64,12 +73,15 @@ function getAudio() {
 }
 function tone(freq: number, type: OscillatorType, dur: number, vol = 0.22) {
   const ctx = getAudio(); if (!ctx) return
+  const { sfxMuted, sfxVolume } = getAudioSettings()
+  if (sfxMuted) return
+  const adjustedVol = vol * sfxVolume
   try {
     const osc = ctx.createOscillator()
     const g   = ctx.createGain()
     osc.connect(g); g.connect(ctx.destination)
     osc.type = type; osc.frequency.value = freq
-    g.gain.setValueAtTime(vol, ctx.currentTime)
+    g.gain.setValueAtTime(adjustedVol, ctx.currentTime)
     g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur)
     osc.start(); osc.stop(ctx.currentTime + dur)
   } catch {}
@@ -85,6 +97,7 @@ const SFX = {
   tacoRain:   () => [330, 440, 220].forEach((f, i) => setTimeout(() => tone(f, 'sawtooth', 0.12, 0.3), i * 50)),
   tacoHit:    () => tone(280, 'square', 0.07),
   fake:       () => tone(600, 'sine', 0.08),
+  coin:       () => { tone(880, 'sine', 0.08, 0.25); setTimeout(() => tone(1108, 'sine', 0.06, 0.18), 55) },
 }
 
 // ── Props ────────────────────────────────────────────────────────
@@ -92,11 +105,12 @@ interface Props {
   player1:        Character
   player2:        Character | null
   matchStartTime: number
-  onVictory:      (winner: 1 | 2, elapsedSeconds: number) => void
+  mode:           'solo' | '1v1'
+  onVictory:      (winner: 1 | 2, time: number, coins: { p1: number; p2: number }) => void
   chaosRef:       MutableRefObject<ChaosState>
 }
 
-export function GameCanvas({ player1, player2, matchStartTime, onVictory, chaosRef }: Props) {
+export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, chaosRef }: Props) {
   const canvasRef    = useRef<HTMLCanvasElement>(null)
   const onVictoryRef = useRef(onVictory)
   useEffect(() => { onVictoryRef.current = onVictory }, [onVictory])
@@ -216,6 +230,34 @@ export function GameCanvas({ player1, player2, matchStartTime, onVictory, chaosR
     // Super jump storage (object refs for mutation inside move())
     const p1SJ = { val: false }
     const p2SJ = { val: false }
+
+    // ── Coin entities ──────────────────────────────────────────────
+    let p1Coins = 0
+    let p2Coins = 0
+    const coinsOnMap: CoinEntity[] = (ROOFTOP_TEST.coinPositions ?? []).map((pos, i) => ({
+      id: i, x: pos.x, y: pos.y, collected: false,
+    }))
+
+    // ── Solo hazards (pre-placed traps) ───────────────────────────
+    if (mode === 'solo') {
+      for (const h of ROOFTOP_TEST.soloHazards ?? []) {
+        const def = TRAP_REGISTRY[h.trapId as TrapId]
+        if (!def) continue
+        activeTrapEntities.push({
+          uid:          ++_trapSeq,
+          trapId:       h.trapId as TrapId,
+          x:            h.x,
+          y:            h.y,
+          owner:        2,           // targets P1 (owner !== 1)
+          expiresAt:    Infinity,    // permanent
+          triggered:    false,
+          w:            def.hitW,
+          h:            def.hitH,
+          isSoloHazard: true,
+          resetAt:      0,
+        })
+      }
+    }
 
     // Particles
     let particles: Particle[] = []
@@ -338,15 +380,17 @@ export function GameCanvas({ player1, player2, matchStartTime, onVictory, chaosR
       const py = body.position.y
 
       activeTrapEntities.push({
-        uid:       ++_trapSeq,
-        trapId:    tid,
-        x:         px + def.placeOffsetX,
-        y:         py + (def.effectType === 'push' ? 0 : 25),
+        uid:          ++_trapSeq,
+        trapId:       tid,
+        x:            px + def.placeOffsetX,
+        y:            py + (def.effectType === 'push' ? 0 : 25),
         owner,
-        expiresAt: now + def.duration * 1000 + 2000,
-        triggered: false,
-        w:         def.hitW,
-        h:         def.hitH,
+        expiresAt:    now + def.duration * 1000 + 2000,
+        triggered:    false,
+        w:            def.hitW,
+        h:            def.hitH,
+        isSoloHazard: false,
+        resetAt:      0,
       })
 
       SFX.trapPlace()
@@ -356,9 +400,17 @@ export function GameCanvas({ player1, player2, matchStartTime, onVictory, chaosR
 
     // ── Trap collision ─────────────────────────────────────────────
     function checkTrapCollisions(now: number) {
-      // Remove expired traps
+      // Remove expired non-solo traps; reset solo hazards after cooldown
       for (let i = activeTrapEntities.length - 1; i >= 0; i--) {
-        if (now > activeTrapEntities[i].expiresAt) activeTrapEntities.splice(i, 1)
+        const trap = activeTrapEntities[i]
+        if (trap.isSoloHazard) {
+          if (trap.resetAt > 0 && now > trap.resetAt) {
+            trap.triggered = false
+            trap.resetAt   = 0
+          }
+          continue   // solo hazards never fully removed
+        }
+        if (now > trap.expiresAt) activeTrapEntities.splice(i, 1)
       }
 
       for (const trap of activeTrapEntities) {
@@ -409,6 +461,8 @@ export function GameCanvas({ player1, player2, matchStartTime, onVictory, chaosR
           // Mark one-shot traps consumed
           if (def.effectType !== 'slow' && def.effectType !== 'push') {
             trap.triggered = true
+            // Solo hazards respawn after their cooldown period
+            if (trap.isSoloHazard) trap.resetAt = now + def.cooldown * 1000
           }
 
           void effectRef  // silence unused lint
@@ -467,6 +521,54 @@ export function GameCanvas({ player1, player2, matchStartTime, onVictory, chaosR
           trackEvent('powerup_collected', { player: pid, powerup: spawn.powerupId })
           break
         }
+      }
+    }
+
+    // ── Coin collision ────────────────────────────────────────────
+    const COIN_R = 18
+    function checkCoinCollisions() {
+      for (const coin of coinsOnMap) {
+        if (coin.collected) continue
+        const targets: Array<{ body: Matter.Body; pid: 1 | 2 }> = [
+          { body: p1Body, pid: 1 },
+          ...(p2Body ? [{ body: p2Body, pid: 2 as const }] : []),
+        ]
+        for (const { body, pid } of targets) {
+          const dx = body.position.x - coin.x
+          const dy = body.position.y - coin.y
+          if (dx * dx + dy * dy < COIN_R * COIN_R) {
+            coin.collected = true
+            if (pid === 1) p1Coins++
+            else           p2Coins++
+            SFX.coin()
+            particles.push(...burst(coin.x, coin.y, '#fbbf24', 10, 2, 5))
+            break
+          }
+        }
+      }
+    }
+
+    function drawCoins(now: number) {
+      for (const coin of coinsOnMap) {
+        if (coin.collected) continue
+        const bob   = Math.sin(now * 0.005 + coin.id * 0.7) * 3
+        const cy    = coin.y + bob
+
+        ctx.save()
+        // Glow
+        const grd = ctx.createRadialGradient(coin.x, cy, 0, coin.x, cy, 14)
+        grd.addColorStop(0, 'rgba(251,191,36,0.55)')
+        grd.addColorStop(1, 'rgba(251,191,36,0)')
+        ctx.fillStyle = grd
+        ctx.beginPath(); ctx.arc(coin.x, cy, 14, 0, Math.PI * 2); ctx.fill()
+        // Core
+        ctx.beginPath(); ctx.arc(coin.x, cy, 7, 0, Math.PI * 2)
+        ctx.fillStyle = '#fbbf24'; ctx.fill()
+        ctx.strokeStyle = '#d97706'; ctx.lineWidth = 1.5; ctx.stroke()
+        // Symbol
+        ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+        ctx.fillStyle = '#78350f'; ctx.fillText('C', coin.x, cy)
+        ctx.restore()
       }
     }
 
@@ -840,6 +942,8 @@ export function GameCanvas({ player1, player2, matchStartTime, onVictory, chaosR
           effectPct:   p2fx.pct,
         },
         tacoRainActive,
+        p1Coins,
+        p2Coins,
       }
     }
 
@@ -857,11 +961,12 @@ export function GameCanvas({ player1, player2, matchStartTime, onVictory, chaosR
       // Timer
       const elapsed = (nowMs - matchStartTime) / 1000
       if (elapsed >= MATCH_SECS) {
-        const winner: 1 | 2 = !p2Body || p1Body.position.x >= p2Body.position.x ? 1 : 2
+        const winner: 1 | 2 = mode === 'solo' ? 1
+          : (!p2Body || p1Body.position.x >= p2Body.position.x ? 1 : 2)
         gameOver = true
         SFX.victory()
         trackEvent('match_finished', { winner, reason: 'timer', time: elapsed })
-        onVictoryRef.current(winner, elapsed)
+        onVictoryRef.current(winner, elapsed, { p1: p1Coins, p2: p2Coins })
         return
       }
 
@@ -871,9 +976,11 @@ export function GameCanvas({ player1, player2, matchStartTime, onVictory, chaosR
       if (p1PowerEffect && nowMs > p1PowerEffect.endsAt) p1PowerEffect = null
       if (p2PowerEffect && nowMs > p2PowerEffect.endsAt) p2PowerEffect = null
 
-      // Trap activation (edge detection)
-      if (keys.has('q') && !prevKeys.has('q')) activateTrap(1)
-      if (keys.has('/') && !prevKeys.has('/')) activateTrap(2)
+      // Trap activation (1v1 only — solo uses pre-placed hazards)
+      if (mode === '1v1') {
+        if (keys.has('q') && !prevKeys.has('q')) activateTrap(1)
+        if (keys.has('/') && !prevKeys.has('/')) activateTrap(2)
+      }
 
       Matter.Engine.update(engine, dt)
 
@@ -894,6 +1001,7 @@ export function GameCanvas({ player1, player2, matchStartTime, onVictory, chaosR
 
       checkTrapCollisions(nowMs)
       checkPowerupCollisions(nowMs)
+      checkCoinCollisions()
       tickTacoRain(nowMs, dtSecs)
 
       // Update particles
@@ -909,16 +1017,18 @@ export function GameCanvas({ player1, player2, matchStartTime, onVictory, chaosR
       if (atFinish(p1Body)) {
         gameOver = true; SFX.victory()
         trackEvent('match_finished', { winner: 1, reason: 'finish', time: elapsed })
-        onVictoryRef.current(1, elapsed); return
+        onVictoryRef.current(1, elapsed, { p1: p1Coins, p2: p2Coins }); return
       }
       if (p2Body && atFinish(p2Body)) {
         gameOver = true; SFX.victory()
         trackEvent('match_finished', { winner: 2, reason: 'finish', time: elapsed })
-        onVictoryRef.current(2, elapsed); return
+        onVictoryRef.current(2, elapsed, { p1: p1Coins, p2: p2Coins }); return
       }
 
-      // Camera
-      const leadBody = p2Body && p2Body.position.x > p1Body.position.x ? p2Body : p1Body
+      // Camera — solo follows P1; 1v1 follows the leader
+      const leadBody = (mode === '1v1' && p2Body && p2Body.position.x > p1Body.position.x)
+        ? p2Body
+        : p1Body
       camX += (leadBody.position.x - CANVAS_W * 0.38 - camX) * 0.09
       camY += (leadBody.position.y - CANVAS_H * 0.52 - camY) * 0.09
       camX = Math.max(0, Math.min(camX, ROOFTOP_TEST.width  - CANVAS_W))
@@ -943,6 +1053,7 @@ export function GameCanvas({ player1, player2, matchStartTime, onVictory, chaosR
       drawMap()
       drawTraps(nowMs)
       drawPowerups(nowMs)
+      drawCoins(nowMs)
       // Tacos (world-space)
       for (const taco of tacos) drawTaco(ctx, taco)
       // Players
@@ -970,7 +1081,7 @@ export function GameCanvas({ player1, player2, matchStartTime, onVictory, chaosR
       Matter.World.clear(world, false)
       Matter.Engine.clear(engine)
     }
-  }, [player1, player2, matchStartTime, chaosRef]) // onVictory via ref
+  }, [player1, player2, matchStartTime, mode, chaosRef]) // onVictory via ref
 
   return (
     <canvas

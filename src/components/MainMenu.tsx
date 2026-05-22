@@ -1,9 +1,13 @@
 'use client'
 import Image from 'next/image'
+import { Settings } from 'lucide-react'
 import { motion, type Variants } from 'framer-motion'
 
 interface MainMenuProps {
-  onPlay: () => void
+  onPlay:           () => void
+  onLeaderboard:    () => void
+  onDailyChallenges: () => void
+  onSettings:       () => void
 }
 
 const stagger: Variants = {
@@ -20,7 +24,7 @@ const fadeUp: Variants = {
 // Normal document flow: header → poster → actions → footer.
 // No content overlaid on the poster.
 
-function MobileMenu({ onPlay }: MainMenuProps) {
+function MobileMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings }: MainMenuProps) {
   return (
     <div
       className="sm:hidden flex flex-col bg-black h-dvh overflow-y-auto"
@@ -84,22 +88,32 @@ function MobileMenu({ onPlay }: MainMenuProps) {
         {/* Secondary buttons */}
         <motion.div variants={fadeUp} className="flex w-full max-w-xs mt-4" style={{ gap: '14px' }}>
           <button
-            className="flex-1 font-bold text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10 rounded-xl"
-            style={{ height: '56px' }}
-          >
-            How to Play
-          </button>
-          <button
+            onClick={onLeaderboard}
             className="flex-1 font-bold text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10 rounded-xl"
             style={{ height: '56px' }}
           >
             Leaderboard
           </button>
+          <button
+            onClick={onDailyChallenges}
+            className="flex-1 font-bold text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10 rounded-xl"
+            style={{ height: '56px' }}
+          >
+            Daily 🎯
+          </button>
         </motion.div>
 
-        <motion.p variants={fadeUp} className="text-gray-700 text-[10px] mt-4">
-          © S&amp;W Family Chaos Parkour
-        </motion.p>
+        {/* Settings + copyright row */}
+        <motion.div variants={fadeUp} className="flex items-center justify-between w-full max-w-xs mt-4">
+          <p className="text-gray-700 text-[10px]">© S&amp;W Family Chaos Parkour</p>
+          <button
+            onClick={onSettings}
+            className="text-gray-600 hover:text-white transition-colors p-1.5"
+            aria-label="Settings"
+          >
+            <Settings size={16} />
+          </button>
+        </motion.div>
       </motion.div>
     </div>
   )
@@ -108,7 +122,7 @@ function MobileMenu({ onPlay }: MainMenuProps) {
 // ─── Desktop layout ───────────────────────────────────────────────────────────
 // Cinematic full-bleed poster with gradient overlay + bottom navigation.
 
-function DesktopMenu({ onPlay }: MainMenuProps) {
+function DesktopMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings }: MainMenuProps) {
   return (
     <div className="hidden sm:flex flex-col relative h-dvh overflow-hidden bg-black">
       {/* Full-bleed poster */}
@@ -163,17 +177,26 @@ function DesktopMenu({ onPlay }: MainMenuProps) {
         </motion.button>
 
         <motion.div variants={fadeUp} className="flex gap-3 w-full max-w-xs">
-          <button className="flex-1 py-3 rounded-xl font-bold text-sm uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10">
-            How to Play
-          </button>
-          <button className="flex-1 py-3 rounded-xl font-bold text-sm uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10">
+          <button
+            onClick={onLeaderboard}
+            className="flex-1 py-3 rounded-xl font-bold text-sm uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10"
+          >
             Leaderboard
+          </button>
+          <button
+            onClick={onDailyChallenges}
+            className="flex-1 py-3 rounded-xl font-bold text-sm uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10"
+          >
+            Daily 🎯
           </button>
         </motion.div>
 
-        <motion.p variants={fadeUp} className="text-gray-700 text-[10px] pt-1">
-          © S&amp;W Family Chaos Parkour
-        </motion.p>
+        <motion.div variants={fadeUp} className="flex items-center justify-between w-full max-w-xs pt-1">
+          <p className="text-gray-700 text-[10px]">© S&amp;W Family Chaos Parkour</p>
+          <button onClick={onSettings} className="text-gray-600 hover:text-white transition-colors p-1" aria-label="Settings">
+            <Settings size={15} />
+          </button>
+        </motion.div>
       </motion.div>
     </div>
   )
@@ -181,11 +204,11 @@ function DesktopMenu({ onPlay }: MainMenuProps) {
 
 // ─── Exported component ───────────────────────────────────────────────────────
 
-export function MainMenu({ onPlay }: MainMenuProps) {
+export function MainMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings }: MainMenuProps) {
   return (
     <>
-      <MobileMenu  onPlay={onPlay} />
-      <DesktopMenu onPlay={onPlay} />
+      <MobileMenu  onPlay={onPlay} onLeaderboard={onLeaderboard} onDailyChallenges={onDailyChallenges} onSettings={onSettings} />
+      <DesktopMenu onPlay={onPlay} onLeaderboard={onLeaderboard} onDailyChallenges={onDailyChallenges} onSettings={onSettings} />
     </>
   )
 }

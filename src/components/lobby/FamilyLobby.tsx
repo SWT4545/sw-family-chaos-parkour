@@ -13,11 +13,12 @@ const MAPS = [
 ]
 
 interface FamilyLobbyProps {
-  player1: Character
-  player2?: Character | null
+  player1:   Character
+  player2?:  Character | null
+  mode?:     'solo' | '1v1'
   onStartMatch: () => void
-  onSelectP2?: () => void
-  onBack: () => void
+  onSelectP2?:  () => void
+  onBack:       () => void
 }
 
 function CharacterPortrait({ character }: { character: Character }) {
@@ -52,7 +53,7 @@ function CharacterPortrait({ character }: { character: Character }) {
   )
 }
 
-export function FamilyLobby({ player1, player2, onStartMatch, onSelectP2, onBack }: FamilyLobbyProps) {
+export function FamilyLobby({ player1, player2, mode = '1v1', onStartMatch, onSelectP2, onBack }: FamilyLobbyProps) {
   const [mapIndex, setMapIndex] = useState(0)
   const map = MAPS[mapIndex]
 
@@ -85,7 +86,7 @@ export function FamilyLobby({ player1, player2, onStartMatch, onSelectP2, onBack
             S&W Family Chaos Parkour
           </p>
           <h1 className="text-lg sm:text-2xl font-black uppercase tracking-widest text-white leading-tight">
-            Match Lobby
+            {mode === 'solo' ? 'Solo Lobby' : 'Match Lobby'}
           </h1>
         </div>
 
@@ -112,17 +113,19 @@ export function FamilyLobby({ player1, player2, onStartMatch, onSelectP2, onBack
             <CharacterPortrait character={player1} />
           </div>
 
-          {/* VS */}
-          <div className="flex-shrink-0 flex flex-row sm:flex-col items-center gap-2">
-            <div className="hidden sm:block w-px h-6 bg-gray-700" />
-            <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-full bg-red-600 border-4 border-red-400/50 flex items-center justify-center">
-              <span className="font-black text-white text-xs sm:text-xl leading-none">VS</span>
+          {/* VS / Solo divider */}
+          {mode === '1v1' && (
+            <div className="flex-shrink-0 flex flex-row sm:flex-col items-center gap-2">
+              <div className="hidden sm:block w-px h-6 bg-gray-700" />
+              <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-full bg-red-600 border-4 border-red-400/50 flex items-center justify-center">
+                <span className="font-black text-white text-xs sm:text-xl leading-none">VS</span>
+              </div>
+              <div className="hidden sm:block w-px h-6 bg-gray-700" />
             </div>
-            <div className="hidden sm:block w-px h-6 bg-gray-700" />
-          </div>
+          )}
 
-          {/* Player 2 */}
-          {player2 ? (
+          {/* Player 2 slot — only shown in 1v1 mode */}
+          {mode === '1v1' && player2 ? (
             <div
               className="w-full sm:flex-1 rounded-2xl p-4 backdrop-blur-sm border text-center"
               style={{
@@ -135,7 +138,7 @@ export function FamilyLobby({ player1, player2, onStartMatch, onSelectP2, onBack
               </p>
               <CharacterPortrait character={player2} />
             </div>
-          ) : (
+          ) : mode === '1v1' ? (
             <div
               className="w-full sm:flex-1 rounded-2xl p-4 backdrop-blur-sm border border-dashed border-gray-700/40 text-center"
               style={{ backgroundColor: 'rgba(10,10,10,0.6)' }}
@@ -157,7 +160,7 @@ export function FamilyLobby({ player1, player2, onStartMatch, onSelectP2, onBack
                 )}
               </div>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Map picker */}

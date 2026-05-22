@@ -11,6 +11,8 @@ export interface ChaosState {
   p1:             PlayerChaosState
   p2:             PlayerChaosState
   tacoRainActive: boolean
+  p1Coins:        number
+  p2Coins:        number
 }
 
 export function defaultChaosState(): ChaosState {
@@ -18,5 +20,5 @@ export function defaultChaosState(): ChaosState {
     trapName: '', trapIcon: '', cooldownPct: 0,
     effectLabel: null, effectColor: null, effectPct: 0,
   }
-  return { p1: { ...blank }, p2: { ...blank }, tacoRainActive: false }
+  return { p1: { ...blank }, p2: { ...blank }, tacoRainActive: false, p1Coins: 0, p2Coins: 0 }
 }

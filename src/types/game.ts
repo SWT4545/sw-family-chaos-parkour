@@ -11,6 +11,17 @@ export interface CheckpointDef {
   y: number
 }
 
+export interface CoinPosition {
+  x: number
+  y: number
+}
+
+export interface SoloHazardDef {
+  trapId: string   // TrapId value — string to avoid circular dep
+  x: number
+  y: number
+}
+
 export interface MapDef {
   width: number
   height: number
@@ -19,4 +30,6 @@ export interface MapDef {
   finishY: number
   platforms: Platform[]
   checkpoints: CheckpointDef[]
+  coinPositions?: CoinPosition[]
+  soloHazards?:  SoloHazardDef[]
 }

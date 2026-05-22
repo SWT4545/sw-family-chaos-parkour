@@ -12,14 +12,16 @@ function fmtTime(s: number) {
 }
 
 interface Props {
-  winner: Character | null
-  loser:  Character | null
-  time:   number
+  winner:     Character | null
+  loser:      Character | null
+  time:       number
+  winnerCoins: number
+  loserCoins:  number
   onPlayAgain:   () => void
   onBackToLobby: () => void
 }
 
-export function VictoryScreen({ winner, loser, time, onPlayAgain, onBackToLobby }: Props) {
+export function VictoryScreen({ winner, loser, time, winnerCoins, loserCoins, onPlayAgain, onBackToLobby }: Props) {
   const winColor = winner?.color ?? '#eab308'
 
   return (
@@ -97,16 +99,24 @@ export function VictoryScreen({ winner, loser, time, onPlayAgain, onBackToLobby 
           </motion.div>
         )}
 
-        {/* Finish time */}
-        <motion.p
+        {/* Stats */}
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.52 }}
-          className="text-gray-600 text-xs"
+          className="flex gap-4 items-center"
         >
-          Finish Time&nbsp;
-          <span className="text-white font-black text-xl tabular-nums">{fmtTime(time)}</span>
-        </motion.p>
+          <div className="text-center">
+            <p className="text-gray-600 text-[10px] uppercase tracking-widest">Finish Time</p>
+            <p className="text-white font-black text-xl tabular-nums">{fmtTime(time)}</p>
+          </div>
+          {winnerCoins > 0 && (
+            <div className="text-center">
+              <p className="text-gray-600 text-[10px] uppercase tracking-widest">Coins</p>
+              <p className="text-yellow-400 font-black text-xl">💰 {winnerCoins}</p>
+            </div>
+          )}
+        </motion.div>
 
         {/* Loser message */}
         {loser && (
@@ -118,7 +128,9 @@ export function VictoryScreen({ winner, loser, time, onPlayAgain, onBackToLobby 
           >
             <p className="text-gray-500 text-sm">
               Nice Try,&nbsp;
-              <span className="text-gray-300 font-bold">{loser.name}</span>&nbsp;🙃
+              <span className="text-gray-300 font-bold">{loser.name}</span>
+              {loserCoins > 0 && <span className="text-gray-500"> · 💰 {loserCoins}</span>}
+              &nbsp;🙃
             </p>
           </motion.div>
         )}
