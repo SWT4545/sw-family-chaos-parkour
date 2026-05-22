@@ -27,12 +27,15 @@ import { getAudioSettings } from '@/lib/game/audio/AudioSettings'
 import type { PlayerSyncState } from '@/lib/firebase/gameSync'
 
 // ── Canvas / physics constants ──────────────────────────────────
-const CANVAS_W  = 960
-const CANVAS_H  = 540
-const PLAYER_W  = 32
-const PLAYER_H  = 50
-const MAX_JUMPS = 2
-const DEATH_Y   = ROOFTOP_TEST.height + 80
+const CANVAS_W   = 960
+const CANVAS_H   = 540
+const ZOOM       = 1.5
+const VIEWPORT_W = Math.round(CANVAS_W / ZOOM)  // 640 — world pixels visible
+const VIEWPORT_H = Math.round(CANVAS_H / ZOOM)  // 360
+const PLAYER_W   = 32
+const PLAYER_H   = 50
+const MAX_JUMPS  = 2
+const DEATH_Y    = ROOFTOP_TEST.height + 80
 const MATCH_SECS = 8 * 60
 
 // ── Chaos entity types ──────────────────────────────────────────
@@ -603,7 +606,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
     function tickTacoRain(now: number, dtSecs: number) {
       if (!tacoRainActive && now >= nextTacoRain) {
         tacoRainActive = true
-        tacos = spawnTacoRain(camX, CANVAS_W)
+        tacos = spawnTacoRain(camX, VIEWPORT_W)
         SFX.tacoRain()
         shakeIntensity = 8
         trackEvent('taco_rain_started', { camX: Math.round(camX) })
@@ -646,47 +649,150 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
 
     // ── Rendering ─────────────────────────────────────────────────
     function drawBg() {
+      const nowT = Date.now()
+
+      // ── Deep sky ────────────────────────────────────────────────
       const grad = ctx.createLinearGradient(0, 0, 0, CANVAS_H)
-      grad.addColorStop(0, '#04040f'); grad.addColorStop(0.65, '#0b0f28'); grad.addColorStop(1, '#141830')
+      grad.addColorStop(0, '#01010c')
+      grad.addColorStop(0.55, '#05081c')
+      grad.addColorStop(1, '#0e1232')
       ctx.fillStyle = grad
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H)
 
-      const sc = camX * 0.14
-      ctx.fillStyle = 'rgba(255,255,255,0.55)'
-      for (let i = 0; i < 90; i++) {
-        const sx = ((i * 8237 + 411) % ROOFTOP_TEST.width) - (sc % ROOFTOP_TEST.width)
-        const sy = (i * 5381 + 177) % (CANVAS_H * 0.52)
+      // ── Stars — twinkling, very slow parallax ─────────────────
+      const starShift = camX * 0.04
+      for (let i = 0; i < 110; i++) {
+        const stX = ((i * 9371 + 313) % ROOFTOP_TEST.width) - (starShift % ROOFTOP_TEST.width)
+        const stY = (i * 4721 + 91) % (CANVAS_H * 0.48)
+        const stR = i % 7 === 0 ? 1.4 : 0.7
+        const twinkle = 0.45 + 0.55 * Math.sin(nowT * 0.002 + i * 0.73)
+        ctx.globalAlpha = twinkle * 0.8
+        ctx.fillStyle = i % 11 === 0 ? '#b8d4ff' : i % 13 === 0 ? '#ffd8a8' : '#ffffff'
         ctx.beginPath()
-        ctx.arc(((sx % CANVAS_W) + CANVAS_W) % CANVAS_W, sy, 0.8, 0, Math.PI * 2)
+        ctx.arc(((stX % CANVAS_W) + CANVAS_W) % CANVAS_W, stY, stR, 0, Math.PI * 2)
         ctx.fill()
       }
+      ctx.globalAlpha = 1
 
-      const bc = camX * 0.22, TW = 920
-      for (let tile = -1; tile < 6; tile++) {
-        const ox = tile * TW - (bc % TW)
-        const bldgs: [number, number, number][] = [
-          [0,78,120],[130,58,90],[190,95,115],[320,65,88],[400,85,140],
-          [510,60,82],[588,100,150],[710,72,102],[800,88,98],
-        ]
-        for (const [bx, bw, bh] of bldgs) {
-          const by = CANVAS_H - bh
-          ctx.fillStyle = '#06061a'; ctx.fillRect(ox + bx, by, bw, bh)
-          for (let wy = 18; wy < bh - 18; wy += 16)
-            for (let wx = 6; wx < bw - 8; wx += 12)
-              if ((bx + wx + wy) % 3 !== 0) {
-                ctx.fillStyle = 'rgba(255,255,160,0.12)'
-                ctx.fillRect(ox + bx + wx, by + wy, 7, 9)
-              }
+      // ── Far city silhouettes — very slow ─────────────────────
+      const fShift = camX * 0.10
+      const FTW = CANVAS_W + 30
+      const farBldgs: [number, number, number][] = [
+        [0,65,90],[80,45,72],[155,72,118],[260,52,82],[335,68,125],
+        [450,48,78],[520,88,142],[655,62,102],[745,78,118],[868,55,94],
+      ]
+      for (let tile = -1; tile < 3; tile++) {
+        const ox = tile * FTW - (fShift % FTW)
+        for (const [bx, bw, bh] of farBldgs) {
+          ctx.fillStyle = '#040410'
+          ctx.fillRect(ox + bx, CANVAS_H - bh, bw, bh)
         }
+      }
+
+      // ── Mid city — neon windows + rooftop accent ──────────────
+      const mShift = camX * 0.20
+      const MTW = CANVAS_W + 80
+      const neonPalette = ['#60a5fa','#ec4899','#34d399','#f59e0b','#a78bfa','#fb923c']
+      const midBldgs: [number, number, number][] = [
+        [0,75,120],[105,55,96],[198,88,152],[316,65,102],[408,92,162],
+        [538,72,118],[630,97,172],[768,76,128],[878,62,108],
+      ]
+      for (let tile = -1; tile < 3; tile++) {
+        const ox = tile * MTW - (mShift % MTW)
+        for (const [bx, bw, bh] of midBldgs) {
+          const by = CANVAS_H - bh
+          ctx.fillStyle = '#070722'
+          ctx.fillRect(ox + bx, by, bw, bh)
+          // Lit windows
+          for (let wy = 12; wy < bh - 10; wy += 18) {
+            for (let wx = 5; wx < bw - 5; wx += 14) {
+              const wk = (bx + wx * 3 + wy * 7) % 8
+              if (wk < 2) {
+                ctx.fillStyle = 'rgba(96,165,250,0.17)'
+                ctx.fillRect(ox + bx + wx, by + wy, 9, 11)
+              } else if (wk === 3) {
+                ctx.fillStyle = 'rgba(251,191,36,0.13)'
+                ctx.fillRect(ox + bx + wx, by + wy, 9, 11)
+              }
+            }
+          }
+          // Neon rooftop bar
+          const nc = neonPalette[(bx * 3 + bh) % neonPalette.length]
+          ctx.globalAlpha = 0.55; ctx.fillStyle = nc
+          ctx.fillRect(ox + bx, by, bw, 2)
+          ctx.globalAlpha = 0.14
+          ctx.fillRect(ox + bx, by, bw, 9)
+          ctx.globalAlpha = 1
+        }
+      }
+
+      // ── Moving clouds ─────────────────────────────────────────
+      const cloudShift = camX * 0.07
+      for (let i = 0; i < 6; i++) {
+        const cspeed = (nowT * 0.00005 + i * 0.37) * CANVAS_W * 0.5
+        const cx2 = ((i * 185 + cspeed - cloudShift) % (CANVAS_W * 1.4) + CANVAS_W * 1.4) % (CANVAS_W * 1.4) - 120
+        const cy2 = 42 + (i * 43) % 58
+        const cw2 = 88 + (i * 31) % 72
+        ctx.save()
+        ctx.globalAlpha = 0.04 + (i % 3) * 0.018
+        ctx.fillStyle = '#8090e0'
+        ctx.beginPath()
+        ctx.ellipse(cx2, cy2, cw2, 20, 0, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.restore()
       }
     }
 
     function drawMap() {
       for (const p of ROOFTOP_TEST.platforms) {
-        ctx.fillStyle = '#22273a'; ctx.fillRect(p.x, p.y, p.width, p.height)
-        ctx.fillStyle = '#343c55'; ctx.fillRect(p.x, p.y, p.width, 3)
-        ctx.fillStyle = '#11141e'; ctx.fillRect(p.x, p.y + p.height - 3, p.width, 3)
-        ctx.fillStyle = '#1a1e2e'; ctx.fillRect(p.x, p.y, 2, p.height)
+        // Metallic body
+        const bodyGrad = ctx.createLinearGradient(p.x, p.y, p.x, p.y + p.height)
+        bodyGrad.addColorStop(0,   '#2a3254')
+        bodyGrad.addColorStop(0.4, '#1c2040')
+        bodyGrad.addColorStop(1,   '#0c0e1c')
+        ctx.fillStyle = bodyGrad
+        ctx.fillRect(p.x, p.y, p.width, p.height)
+
+        // Hazard stripes on wide platforms
+        if (p.width > 280) {
+          ctx.save()
+          ctx.globalAlpha = 0.06
+          ctx.fillStyle = '#f59e0b'
+          const sw = 26
+          for (let dx = 0; dx < p.width; dx += sw * 2)
+            ctx.fillRect(p.x + dx, p.y, sw, p.height)
+          ctx.restore()
+        }
+
+        // Cyan glowing top edge
+        const edgeGrad = ctx.createLinearGradient(0, p.y, 0, p.y + 5)
+        edgeGrad.addColorStop(0, 'rgba(110,210,255,0.95)')
+        edgeGrad.addColorStop(1, 'rgba(50,100,220,0.0)')
+        ctx.fillStyle = edgeGrad
+        ctx.fillRect(p.x, p.y, p.width, 5)
+
+        // Side edges
+        ctx.fillStyle = 'rgba(90,140,220,0.22)'
+        ctx.fillRect(p.x, p.y, 2, p.height)
+        ctx.fillRect(p.x + p.width - 2, p.y, 2, p.height)
+
+        // Bottom shadow line
+        ctx.fillStyle = 'rgba(0,0,0,0.55)'
+        ctx.fillRect(p.x, p.y + p.height - 2, p.width, 2)
+
+        // Bolt dots on platforms wider than 80
+        if (p.width > 80) {
+          ctx.save()
+          ctx.fillStyle = 'rgba(110,160,210,0.38)'
+          const boltXs = [9, p.width - 13]
+          if (p.width > 160) boltXs.push(Math.round(p.width / 2))
+          for (const bx of boltXs) {
+            ctx.beginPath()
+            ctx.arc(p.x + bx, p.y + Math.round(p.height / 2), 2.5, 0, Math.PI * 2)
+            ctx.fill()
+          }
+          ctx.restore()
+        }
       }
 
       ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'
@@ -945,8 +1051,20 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
         if (p2Body.velocity.x < -0.5) p2Facing = 'left'
         else if (p2Body.velocity.x > 0.5) p2Facing = 'right'
       }
-      if (!p1WasGrounded && p1g) p1LandSquashT = nowMs
-      if (!p2WasGrounded && p2g) p2LandSquashT = nowMs
+      if (!p1WasGrounded && p1g) {
+        p1LandSquashT = nowMs
+        if (Math.abs(p1Body.velocity.y) > 2) {
+          const p1FootY = p1Body.position.y + PLAYER_H / 2
+          particles.push(...burst(p1Body.position.x, p1FootY, '#94a3b8', 6, 1.8, 3.5))
+        }
+      }
+      if (!p2WasGrounded && p2g) {
+        p2LandSquashT = nowMs
+        if (p2Body && Math.abs(p2Body.velocity.y) > 2) {
+          const p2FootY = p2Body.position.y + PLAYER_H / 2
+          particles.push(...burst(p2Body.position.x, p2FootY, '#94a3b8', 6, 1.8, 3.5))
+        }
+      }
       p1WasGrounded = p1g
       p2WasGrounded = p2g
 
@@ -1010,10 +1128,10 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       const leadBody = (mode === '1v1' && p2Body && p2Body.position.x > p1Body.position.x)
         ? p2Body
         : p1Body
-      camX += (leadBody.position.x - CANVAS_W * 0.38 - camX) * 0.09
-      camY += (leadBody.position.y - CANVAS_H * 0.52 - camY) * 0.09
-      camX = Math.max(0, Math.min(camX, ROOFTOP_TEST.width  - CANVAS_W))
-      camY = Math.max(-60, Math.min(camY, ROOFTOP_TEST.height - CANVAS_H + 100))
+      camX += (leadBody.position.x - VIEWPORT_W * 0.38 - camX) * 0.09
+      camY += (leadBody.position.y - VIEWPORT_H * 0.52 - camY) * 0.09
+      camX = Math.max(0, Math.min(camX, ROOFTOP_TEST.width  - VIEWPORT_W))
+      camY = Math.max(-60, Math.min(camY, ROOFTOP_TEST.height - VIEWPORT_H + 100))
 
       // Key snapshot for next frame edge detection
       prevKeys.clear(); keys.forEach((k) => prevKeys.add(k))
@@ -1030,7 +1148,8 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       const sy = (Math.random() - 0.5) * shakeIntensity * 0.6
 
       ctx.save()
-      ctx.translate(-Math.round(camX) + sx, -Math.round(camY) + sy)
+      ctx.scale(ZOOM, ZOOM)
+      ctx.translate(-Math.round(camX) + sx / ZOOM, -Math.round(camY) + sy / ZOOM)
       drawMap()
       drawTraps(nowMs)
       drawPowerups(nowMs)

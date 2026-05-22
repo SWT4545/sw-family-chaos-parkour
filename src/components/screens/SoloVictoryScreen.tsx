@@ -1,6 +1,6 @@
 'use client'
 import { motion } from 'framer-motion'
-import { Trophy, RotateCcw, Home, Clock, Star } from 'lucide-react'
+import { RotateCcw, Home, Clock, Star } from 'lucide-react'
 import { Character } from '@/types/player'
 import { CharacterImage } from '@/components/game/CharacterImage'
 import { CHARACTER_ALIGNMENT } from '@/lib/game/assets/AssetRegistry'
@@ -14,12 +14,20 @@ function fmtTime(s: number) {
   return `${m}:${sec.toString().padStart(2, '0')}`
 }
 
+function getVictoryBadge(didFinish: boolean, time: number, coins: number, isNewBest: boolean) {
+  if (!didFinish) return { label: "Time's Up!",      color: '#6b7280', bg: '#6b728018' }
+  if (isNewBest)  return { label: 'New Best Time!',  color: '#fbbf24', bg: '#fbbf2422' }
+  if (time < 120) return { label: 'Blazing Fast!',   color: '#60a5fa', bg: '#60a5fa20' }
+  if (coins >= 5) return { label: 'Coin Collector!', color: '#f59e0b', bg: '#f59e0b20' }
+  return             { label: 'Run Complete!',       color: '#10b981', bg: '#10b98120' }
+}
+
 interface Props {
-  player:    Character
-  time:      number
-  coins:     number
-  onPlayAgain:   () => void
-  onBackToMenu:  () => void
+  player:       Character
+  time:         number
+  coins:        number
+  onPlayAgain:  () => void
+  onBackToMenu: () => void
 }
 
 export function SoloVictoryScreen({ player, time, coins, onPlayAgain, onBackToMenu }: Props) {
@@ -27,114 +35,173 @@ export function SoloVictoryScreen({ player, time, coins, onPlayAgain, onBackToMe
   const profile   = LocalProfiles.getByCharacter(player.id)
   const bestTime  = profile?.bestSoloTime ?? null
   const isNewBest = didFinish && (bestTime === null || time < bestTime)
+  const badge     = getVictoryBadge(didFinish, time, coins, isNewBest)
 
   return (
-    <div className="relative h-dvh bg-[#050508] flex items-center justify-center overflow-hidden">
-      {/* Blurred bg */}
+    <div
+      className="relative h-dvh overflow-hidden flex flex-col"
+      style={{ backgroundColor: '#020208' }}
+    >
+      {/* Ambient character glow */}
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.7 }}
+        style={{
+          background: `radial-gradient(ellipse 80% 70% at 50% 58%, ${player.color}20 0%, transparent 68%)`,
+        }}
+      />
+
+      {/* Blurred poster bg */}
       <div
-        className="absolute inset-0 opacity-[0.15]"
+        className="absolute inset-0 opacity-[0.12]"
         style={{
           backgroundImage: 'url(/family-chaos-poster.png)',
           backgroundSize: 'cover', backgroundPosition: 'center',
-          filter: 'blur(22px)', transform: 'scale(1.06)',
+          filter: 'blur(28px)', transform: 'scale(1.08)',
         }}
       />
-      {/* Glow */}
+
       <div
-        className="absolute inset-0"
-        style={{ background: `radial-gradient(ellipse at center, ${player.color}18 0%, transparent 65%)` }}
-      />
+        className="relative z-10 flex flex-col h-full"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
 
-      <div className="relative z-10 flex flex-col items-center text-center px-6 gap-4 max-w-sm w-full">
-
-        {/* Trophy / skull */}
+        {/* ── Rarity badge ──────────────────────────────────────── */}
         <motion.div
-          initial={{ scale: 0, rotate: -20 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: 'spring', stiffness: 180, damping: 14, delay: 0.1 }}
-          className="w-20 h-20 rounded-full flex items-center justify-center"
-          style={{ backgroundColor: didFinish ? '#fbbf24' : '#374151' }}
+          className="flex-shrink-0 flex justify-center pt-5 pb-1"
+          initial={{ opacity: 0, y: -22 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.15, ease: 'easeOut' }}
         >
-          {didFinish
-            ? <Trophy size={38} className="text-black" />
-            : <Clock  size={38} className="text-gray-300" />}
+          <div
+            className="px-5 py-1.5 rounded-full font-black text-[11px] uppercase tracking-[0.28em]"
+            style={{
+              backgroundColor: badge.bg,
+              color: badge.color,
+              border: `1px solid ${badge.color}55`,
+            }}
+          >
+            {badge.label}
+          </div>
         </motion.div>
 
-        {/* Title */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-          <p className="text-[10px] uppercase tracking-[0.45em] text-yellow-500 font-bold mb-1">
-            {didFinish ? 'Run Complete!' : "Time's Up!"}
-          </p>
-          <h1 className="text-4xl sm:text-5xl font-black uppercase leading-none" style={{ color: player.color }}>
+        {/* ── Character name + tagline ───────────────────────────── */}
+        <motion.div
+          className="flex-shrink-0 text-center px-4 pb-2"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.3, ease: 'easeOut' }}
+        >
+          <h1
+            className="text-5xl sm:text-6xl font-black uppercase leading-none tracking-tight"
+            style={{ color: player.color }}
+          >
             {player.name}
           </h1>
-          {isNewBest && (
-            <motion.p
-              initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.5, type: 'spring' }}
-              className="text-yellow-400 font-black text-sm mt-1.5 uppercase tracking-widest"
-            >
-              ⭐ New Best Time!
-            </motion.p>
-          )}
+          <p className="text-gray-500 text-xs mt-2 italic tracking-wide">
+            &ldquo;{player.tagline}&rdquo;
+          </p>
         </motion.div>
 
-        {/* Victory art */}
+        {/* ── Victory character card — fills remaining space ─────── */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.88 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }}
-          className="relative w-32 h-44 rounded-2xl border-2 overflow-hidden"
-          style={{ borderColor: player.color, boxShadow: `0 0 28px ${player.color}50` }}
+          className="flex-1 flex items-end justify-center px-4 min-h-0"
+          initial={{ opacity: 0, scale: 0.88, y: 32 }}
+          animate={{ opacity: 1, scale: 1,    y: 0 }}
+          transition={{ duration: 0.55, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
-          <CharacterImage
-            src={player.assets.victory}
-            alt={`${player.name} victory`}
-            {...CHARACTER_ALIGNMENT[player.id]}
-            sizes="128px"
-            priority
-          />
+          <div
+            className="relative rounded-2xl overflow-hidden"
+            style={{
+              width:       'min(84vw, 320px)',
+              aspectRatio: '2 / 3',
+              border:      `2px solid ${player.color}50`,
+              boxShadow:   `0 0 60px ${player.color}30, 0 0 120px ${player.color}12`,
+            }}
+          >
+            <CharacterImage
+              src={player.assets.victory}
+              alt={`${player.name} victory`}
+              {...CHARACTER_ALIGNMENT[player.id]}
+              sizes="(max-width: 640px) 84vw, 320px"
+              priority
+            />
+            <div
+              className="absolute inset-0 pointer-events-none rounded-2xl"
+              style={{ boxShadow: `inset 0 0 40px ${player.color}16` }}
+            />
+          </div>
         </motion.div>
 
-        {/* Stats */}
+        {/* ── Stats glass panel ──────────────────────────────────── */}
         <motion.div
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
-          className="w-full grid grid-cols-3 gap-2"
+          className="flex-shrink-0 px-4 pt-4 pb-3"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.9, ease: 'easeOut' }}
         >
-          {[
-            { label: 'Finish Time', value: fmtTime(time), icon: <Clock size={12} /> },
-            { label: 'Coins',       value: String(coins),  icon: '💰' },
-            { label: 'Best Time',   value: bestTime !== null ? fmtTime(bestTime) : '—', icon: <Star size={12} /> },
-          ].map((stat) => (
-            <div key={stat.label} className="rounded-xl px-3 py-2.5 bg-white/[0.04] border border-white/8">
-              <div className="flex items-center justify-center gap-1 text-gray-500 mb-1">
-                {typeof stat.icon === 'string' ? stat.icon : stat.icon}
-                <span className="text-[9px] uppercase tracking-wider">{stat.label}</span>
+          <div
+            className="rounded-2xl grid grid-cols-3 overflow-hidden"
+            style={{
+              border:          '1px solid rgba(255,255,255,0.08)',
+              backgroundColor: 'rgba(255,255,255,0.03)',
+            }}
+          >
+            {[
+              { label: 'TIME',  value: fmtTime(time),                         icon: <Clock size={10} /> },
+              { label: 'COINS', value: `💰 ${coins}`,                         icon: null               },
+              { label: 'BEST',  value: bestTime !== null ? fmtTime(bestTime) : '—', icon: <Star size={10} /> },
+            ].map((s, i) => (
+              <div
+                key={s.label}
+                className="flex flex-col items-center py-3 px-2"
+                style={{
+                  borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.06)' : undefined,
+                  backgroundColor: 'rgba(255,255,255,0.02)',
+                }}
+              >
+                <div className="flex items-center gap-1 text-gray-600 mb-1.5">
+                  {s.icon}
+                  <span className="text-[9px] uppercase tracking-widest font-bold">{s.label}</span>
+                </div>
+                <span className="text-white font-black text-base tabular-nums">{s.value}</span>
               </div>
-              <p className="font-black text-white text-base tabular-nums">{stat.value}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </motion.div>
 
-        {/* Actions */}
+        {/* ── Action buttons ─────────────────────────────────────── */}
         <motion.div
-          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}
-          className="flex gap-3 w-full"
+          className="flex-shrink-0 px-4"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 1.2, ease: 'easeOut' }}
         >
-          <button
-            onClick={onBackToMenu}
-            className="flex items-center justify-center gap-2 py-3.5 px-5 rounded-xl font-bold text-sm uppercase tracking-wider text-white border border-white/20 hover:bg-white/10 transition-colors"
-          >
-            <Home size={14} />
-            Menu
-          </button>
-          <motion.button
-            onClick={onPlayAgain}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-black text-base uppercase tracking-widest text-black bg-yellow-400"
-            whileHover={{ scale: 1.02, backgroundColor: '#fbbf24' }}
-            whileTap={{ scale: 0.97 }}
-          >
-            <RotateCcw size={15} />
-            Play Again
-          </motion.button>
+          <div className="flex gap-3">
+            <button
+              onClick={onBackToMenu}
+              className="flex items-center justify-center gap-2 rounded-2xl font-bold text-sm uppercase tracking-wider text-white border border-white/15 hover:bg-white/8 transition-colors"
+              style={{ height: '58px', paddingInline: '22px' }}
+            >
+              <Home size={15} />
+              Menu
+            </button>
+            <motion.button
+              onClick={onPlayAgain}
+              className="flex-1 flex items-center justify-center gap-2 rounded-2xl font-black text-base uppercase tracking-widest text-black"
+              style={{ height: '58px', backgroundColor: '#eab308' }}
+              whileHover={{ scale: 1.02, backgroundColor: '#fbbf24' }}
+              whileTap={{ scale: 0.97 }}
+            >
+              <RotateCcw size={16} />
+              Play Again
+            </motion.button>
+          </div>
         </motion.div>
+
       </div>
     </div>
   )
