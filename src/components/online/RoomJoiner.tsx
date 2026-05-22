@@ -75,6 +75,18 @@ export function RoomJoiner({ player, playerName, onJoined, onBack }: Props) {
       </div>
 
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center gap-6 px-6">
+        {/* Character strip */}
+        <div
+          className="w-full max-w-sm rounded-2xl border px-6 py-4 text-center"
+          style={{ backgroundColor: 'rgba(10,10,10,0.85)', borderColor: `${player.color}35` }}
+        >
+          <p className="text-[10px] uppercase tracking-widest font-bold mb-0.5" style={{ color: player.color }}>
+            Your Character
+          </p>
+          <p className="font-black text-white text-2xl uppercase" style={{ color: player.color }}>{player.name}</p>
+          <p className="text-gray-500 text-[10px] mt-0.5">{playerName}</p>
+        </div>
+
         <div
           className="w-full max-w-sm rounded-2xl border border-white/[0.06] p-6 text-center"
           style={{ backgroundColor: 'rgba(10,10,10,0.85)' }}

@@ -6,7 +6,7 @@ import { getDb } from './firebaseConfig'
 import type { Room, RoomPlayer, RoomStatus } from '@/types/room'
 
 const COLL        = 'swfcp_rooms'
-const TIMEOUT_MS  = 10_000
+const TIMEOUT_MS  = 6_000
 
 function withTimeout<T>(promise: Promise<T>, ms = TIMEOUT_MS): Promise<T> {
   return Promise.race([

@@ -73,12 +73,22 @@ export function RoomCreator({ player, playerName, onCreated, onBack }: Props) {
 
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center gap-6 px-6">
         <div
-          className="w-full max-w-sm rounded-2xl border border-white/[0.06] p-6 text-center"
-          style={{ backgroundColor: 'rgba(10,10,10,0.85)' }}
+          className="w-full max-w-sm rounded-2xl border p-6 text-center"
+          style={{ backgroundColor: 'rgba(10,10,10,0.85)', borderColor: `${player.color}35` }}
         >
-          <p className="text-[10px] uppercase tracking-widest text-yellow-500 font-bold mb-1">Playing as</p>
-          <h2 className="font-black text-white text-2xl uppercase">{playerName}</h2>
-          <p className="text-xs mt-1 font-semibold" style={{ color: player.color }}>{player.name}</p>
+          {/* Character — the important thing to show clearly */}
+          <p className="text-[10px] uppercase tracking-widest font-bold mb-1" style={{ color: player.color }}>
+            Your Character
+          </p>
+          <h2 className="font-black text-white text-3xl uppercase" style={{ color: player.color }}>
+            {player.name}
+          </h2>
+          <p className="text-gray-500 text-xs mt-1 italic">&ldquo;{player.tagline}&rdquo;</p>
+          {/* Player name — secondary */}
+          <div className="mt-3 pt-3 border-t border-white/[0.06]">
+            <p className="text-gray-600 text-[10px] uppercase tracking-widest">Playing as</p>
+            <p className="text-gray-300 text-sm font-bold mt-0.5">{playerName}</p>
+          </div>
         </div>
 
         {error && (

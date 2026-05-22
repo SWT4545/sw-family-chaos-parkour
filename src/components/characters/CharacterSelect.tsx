@@ -13,7 +13,8 @@ interface CharacterSelectProps {
 }
 
 export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: CharacterSelectProps) {
-  const [focused, setFocused] = useState<Character>(CHARACTERS[0])
+  // No pre-selection — user must explicitly tap a card before SELECT activates
+  const [focused, setFocused] = useState<Character | null>(null)
 
   return (
     <div
@@ -83,7 +84,7 @@ export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: Characte
               >
                 <CharacterCard
                   character={char}
-                  selected={focused.id === char.id}
+                  selected={focused?.id === char.id}
                   onSelect={() => setFocused(char)}
                   size="lg"
                   sizeClassName="w-full h-full"
@@ -92,8 +93,20 @@ export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: Characte
             ))}
           </div>
 
-          {/* ── Detail panel ── fully below grid, single-col on mobile ── */}
+          {/* ── Prompt until a card is tapped ── */}
+          {!focused && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-gray-500 text-sm text-center mt-8 uppercase tracking-widest"
+            >
+              Tap a character to see their stats
+            </motion.p>
+          )}
+
+          {/* ── Detail panel — only shown after a card is tapped ── */}
           <AnimatePresence mode="wait">
+            {focused && (
             <motion.div
               key={focused.id}
               initial={{ opacity: 0, y: 12 }}
@@ -111,7 +124,7 @@ export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: Characte
                   padding:         '24px',
                 }}
               >
-                {/* Role + Name + Quote — always full width */}
+                {/* Role + Name + Quote */}
                 <div className="mb-4">
                   <p
                     className="text-[11px] uppercase tracking-widest font-bold mb-1"
@@ -127,7 +140,7 @@ export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: Characte
                   </p>
                 </div>
 
-                {/* Special Ability box — full width on mobile, inline on sm+ */}
+                {/* Special Ability box */}
                 <div
                   className="w-full rounded-xl px-4 py-3"
                   style={{
@@ -153,7 +166,7 @@ export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: Characte
                   </p>
                 </div>
 
-                {/* Select button — full width, 60px tall */}
+                {/* Select button — only enabled after tapping a card */}
                 <motion.button
                   onClick={() => onSelect(focused)}
                   className="w-full rounded-xl font-black text-base uppercase tracking-widest text-black flex items-center justify-center"
@@ -165,10 +178,11 @@ export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: Characte
                   whileHover={{ scale: 1.02, backgroundColor: '#fbbf24' }}
                   whileTap={{ scale: 0.97 }}
                 >
-                  SELECT {focused.name.toUpperCase()} →
+                  PLAY AS {focused.name.toUpperCase()} →
                 </motion.button>
               </div>
             </motion.div>
+            )}
           </AnimatePresence>
 
         </div>
