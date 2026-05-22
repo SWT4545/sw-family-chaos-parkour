@@ -29,7 +29,7 @@ const fadeUp: Variants = {
 function MobileMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onShop, onSeason }: MainMenuProps) {
   return (
     <div
-      className="lg:hidden flex flex-col bg-black h-dvh overflow-y-auto"
+      className="xl:hidden flex flex-col bg-black h-dvh overflow-y-auto"
       style={{
         paddingTop:    'env(safe-area-inset-top)',
         paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
@@ -145,24 +145,25 @@ function MobileMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onSh
 
 function DesktopMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onShop, onSeason }: MainMenuProps) {
   return (
-    <div className="hidden lg:flex flex-col relative h-dvh overflow-hidden bg-black">
-      {/* Full-bleed poster */}
+    <div className="hidden xl:flex flex-col relative h-dvh overflow-hidden bg-black">
+      {/* Poster — object-contain so the full art shows, no cropping */}
       <div className="absolute inset-0">
         <Image
           src="/family-chaos-poster.png"
           alt="S&W Family Chaos Parkour"
           fill
-          className="object-cover object-center"
+          className="object-contain object-center"
           priority
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/95" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/20" />
+        {/* Dark gradient top zone — clean space for the badge above the poster */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black via-black/10 to-black/95" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-black/30" />
       </div>
 
-      {/* Top badge */}
+      {/* Top badge — sits in the solid-black top zone above the poster art */}
       <motion.div
         className="relative z-10 text-center flex-shrink-0"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 28px)' }}
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 32px)' }}
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
