@@ -1,5 +1,5 @@
 'use client'
-import { useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, ArrowUp, Zap } from 'lucide-react'
 
 function fireKey(key: string, type: 'keydown' | 'keyup') {
@@ -164,11 +164,25 @@ export function TouchControls({ mode = 'solo' }: TouchControlsProps) {
   const p = useCallback((k: string) => fireKey(k, 'keydown'), [])
   const r = useCallback((k: string) => fireKey(k, 'keyup'),   [])
 
+  // Show on touch screens (coarse pointer) — hides on mouse/trackpad devices.
+  // Detecting via JS is more reliable than CSS breakpoints since it correctly
+  // handles tablets with/without keyboards connected.
+  const [isTouch, setIsTouch] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: coarse)')
+    setIsTouch(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setIsTouch(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
+  if (!isTouch) return null
+
   const showP2 = mode === '1v1'
 
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 bottom-0 flex lg:hidden z-20"
+      className="pointer-events-none absolute inset-x-0 bottom-0 flex z-20"
       style={{
         justifyContent: showP2 ? 'space-between' : 'flex-start',
         alignItems: 'flex-end',
