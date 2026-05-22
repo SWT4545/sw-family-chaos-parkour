@@ -3,6 +3,7 @@ import { useEffect, useRef, MutableRefObject } from 'react'
 import Matter from 'matter-js'
 import { Character } from '@/types/player'
 import { ChaosState, defaultChaosState } from '@/types/chaos'
+import type { MapDef } from '@/types/game'
 import { ROOFTOP_TEST } from '@/lib/game/maps/rooftopTest'
 import { trackEvent } from '@/lib/axiom/axiom'
 import { TRAP_REGISTRY, CHAR_TRAP } from '@/lib/game/traps/TrapRegistry'
@@ -128,9 +129,10 @@ interface Props {
   remoteGhosts?:   RemoteGhost[]
   onTickSync?:     (state: PlayerSyncState) => void
   onFinishSync?:   (state: PlayerSyncState) => void  // immediate publish on finish
+  map?:            MapDef
 }
 
-export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, chaosRef, remoteGhosts, onTickSync, onFinishSync }: Props) {
+export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, chaosRef, remoteGhosts, onTickSync, onFinishSync, map }: Props) {
   const canvasRef        = useRef<HTMLCanvasElement>(null)
   const onVictoryRef     = useRef(onVictory)
   const remoteGhostsRef  = useRef<RemoteGhost[]>(remoteGhosts ?? [])
@@ -145,6 +147,8 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')!
+    const activeMap = map ?? ROOFTOP_TEST
+    const deathY = activeMap.height + 80
 
     // ── DPR-aware buffer — crisp on retina displays ───────────────
     const dpr = Math.min(window.devicePixelRatio || 1, 2)
@@ -166,8 +170,8 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
     const engine = Matter.Engine.create({ gravity: { y: 2.6 } })
     const world  = engine.world
 
-    const s1 = ROOFTOP_TEST.startPositions[0]
-    const s2 = ROOFTOP_TEST.startPositions[1]
+    const s1 = activeMap.startPositions[0]
+    const s2 = activeMap.startPositions[1]
 
     const bodyBase = {
       frictionAir: 0.025, friction: 0.06, restitution: 0,
@@ -179,11 +183,11 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       ? Matter.Bodies.rectangle(s2.x, s2.y, PLAYER_W, PLAYER_H, { ...bodyBase, label: 'player2' })
       : null
 
-    const platBodies = ROOFTOP_TEST.platforms.map((p) =>
+    const platBodies = activeMap.platforms.map((p) =>
       Matter.Bodies.rectangle(p.x + p.width / 2, p.y + p.height / 2, p.width, p.height,
         { isStatic: true, label: 'platform', friction: 0.5, restitution: 0 })
     )
-    const leftWall = Matter.Bodies.rectangle(-25, ROOFTOP_TEST.height / 2, 50, ROOFTOP_TEST.height,
+    const leftWall = Matter.Bodies.rectangle(-25, activeMap.height / 2, 50, activeMap.height,
       { isStatic: true, label: 'wall' })
 
     Matter.World.add(world, [...platBodies, leftWall, p1Body, ...(p2Body ? [p2Body] : [])])
@@ -275,13 +279,13 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
     // ── Coin entities ──────────────────────────────────────────────
     let p1Coins = 0
     let p2Coins = 0
-    const coinsOnMap: CoinEntity[] = (ROOFTOP_TEST.coinPositions ?? []).map((pos, i) => ({
+    const coinsOnMap: CoinEntity[] = (activeMap.coinPositions ?? []).map((pos, i) => ({
       id: i, x: pos.x, y: pos.y, collected: false,
     }))
 
     // ── Solo hazards (pre-placed traps) ───────────────────────────
     if (mode === 'solo') {
-      for (const h of ROOFTOP_TEST.soloHazards ?? []) {
+      for (const h of activeMap.soloHazards ?? []) {
         const def = TRAP_REGISTRY[h.trapId as TrapId]
         if (!def) continue
         activeTrapEntities.push({
@@ -382,7 +386,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
     }
 
     function checkCPs(body: Matter.Body, cp: { x: number; y: number }, pid: 1 | 2) {
-      for (const c of ROOFTOP_TEST.checkpoints) {
+      for (const c of activeMap.checkpoints) {
         if (Math.abs(body.position.x - c.x) < 55 && Math.abs(body.position.y - c.y) < 80) {
           if (c.x > cp.x) {
             SFX.checkpoint()
@@ -624,7 +628,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       }
 
       if (tacoRainActive) {
-        tacos = updateTacos(tacos, ROOFTOP_TEST.height)
+        tacos = updateTacos(tacos, activeMap.height)
         const allDone = tacos.every((t) => !t.active)
         if (allDone) {
           tacoRainActive = false
@@ -673,7 +677,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       // ── Stars — twinkling, very slow parallax ─────────────────
       const starShift = camX * 0.04
       for (let i = 0; i < 110; i++) {
-        const stX = ((i * 9371 + 313) % ROOFTOP_TEST.width) - (starShift % ROOFTOP_TEST.width)
+        const stX = ((i * 9371 + 313) % activeMap.width) - (starShift % activeMap.width)
         const stY = (i * 4721 + 91) % (CANVAS_H * 0.48)
         const stR = i % 7 === 0 ? 1.4 : 0.7
         const twinkle = 0.45 + 0.55 * Math.sin(nowT * 0.002 + i * 0.73)
@@ -755,7 +759,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
     }
 
     function drawMap() {
-      for (const p of ROOFTOP_TEST.platforms) {
+      for (const p of activeMap.platforms) {
         // Metallic body
         const bodyGrad = ctx.createLinearGradient(p.x, p.y, p.x, p.y + p.height)
         bodyGrad.addColorStop(0,   '#2a3254')
@@ -808,10 +812,10 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
 
       ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'
       ctx.fillStyle = '#10b981'
-      ctx.fillText('START', s1.x + 22, ROOFTOP_TEST.platforms[0].y - 6)
+      ctx.fillText('START', s1.x + 22, activeMap.platforms[0].y - 6)
 
       const t = Date.now() / 1000
-      for (const cp of ROOFTOP_TEST.checkpoints) {
+      for (const cp of activeMap.checkpoints) {
         const pulse = 0.65 + 0.35 * Math.sin(t * 3.5 + cp.id * 1.2)
         ctx.save(); ctx.globalAlpha = pulse
         ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(cp.x, cp.y, 13, 0, Math.PI * 2); ctx.fill()
@@ -823,7 +827,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
         ctx.fillStyle = '#fbbf24'; ctx.fillText(`CP${cp.id}`, cp.x, cp.y - 15)
       }
 
-      const fx = ROOFTOP_TEST.finishX, fy = ROOFTOP_TEST.finishY
+      const fx = activeMap.finishX, fy = activeMap.finishY
       ctx.strokeStyle = '#10b981'; ctx.lineWidth = 3; ctx.setLineDash([5, 3])
       ctx.beginPath(); ctx.moveTo(fx, fy - 72); ctx.lineTo(fx, fy + 30); ctx.stroke()
       ctx.setLineDash([])
@@ -1032,7 +1036,9 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
           winner = (!p2Body || p1Body.position.x >= p2Body.position.x) ? 1 : 2
         } else if (mode === 'online') {
           // Compare local player X against furthest remote ghost
-          const bestGhostX = remoteGhostsRef.current.reduce((max, g) => Math.max(max, g.state.x), -Infinity)
+          const bestGhostX = remoteGhostsRef.current.length > 0
+            ? remoteGhostsRef.current.reduce((max, g) => Math.max(max, g.state?.x ?? -Infinity), -Infinity)
+            : -Infinity
           winner = p1Body.position.x >= bestGhostX ? 1 : 2
         }
         gameOver = true
@@ -1120,8 +1126,8 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       p1CP = checkCPs(p1Body, p1CP, 1)
       if (p2Body) p2CP = checkCPs(p2Body, p2CP, 2)
 
-      if (p1Body.position.y > DEATH_Y) respawn(p1Body, p1CP, 1, p1Gnd)
-      if (p2Body && p2Body.position.y > DEATH_Y) respawn(p2Body, p2CP, 2, p2Gnd)
+      if (p1Body.position.y > deathY) respawn(p1Body, p1CP, 1, p1Gnd)
+      if (p2Body && p2Body.position.y > deathY) respawn(p2Body, p2CP, 2, p2Gnd)
 
       checkTrapCollisions(nowMs)
       checkPowerupCollisions(nowMs)
@@ -1136,7 +1142,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
 
       // Finish detection
       const atFinish = (b: Matter.Body) =>
-        Math.abs(b.position.x - ROOFTOP_TEST.finishX) < 75 && b.position.y < ROOFTOP_TEST.finishY + 90
+        Math.abs(b.position.x - activeMap.finishX) < 75 && b.position.y < activeMap.finishY + 90
 
       // In online mode: check if any remote player has already crossed the finish
       if (mode === 'online') {
@@ -1174,8 +1180,8 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
         : p1Body
       camX += (leadBody.position.x - VIEWPORT_W * 0.38 - camX) * 0.09
       camY += (leadBody.position.y - VIEWPORT_H * 0.52 - camY) * 0.09
-      camX = Math.max(0, Math.min(camX, ROOFTOP_TEST.width  - VIEWPORT_W))
-      camY = Math.max(-60, Math.min(camY, ROOFTOP_TEST.height - VIEWPORT_H + 100))
+      camX = Math.max(0, Math.min(camX, activeMap.width  - VIEWPORT_W))
+      camY = Math.max(-60, Math.min(camY, activeMap.height - VIEWPORT_H + 100))
 
       // Key snapshot for next frame edge detection
       prevKeys.clear(); keys.forEach((k) => prevKeys.add(k))
@@ -1202,8 +1208,9 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       for (const taco of tacos) drawTaco(ctx, taco)
       // Remote ghost players (online mode)
       for (const ghost of remoteGhostsRef.current) {
+        if (!ghost?.character) continue
         loadCharacterImage(ghost.character.id)
-        drawGhost(ctx, ghost.character.id, ghost.character.color, ghost.name,
+        drawGhost(ctx, ghost.character.id, ghost.character.color ?? '#888', ghost.name,
           ghost.state.x, ghost.state.y, ghost.state.facing)
       }
       // Players — PNG renderer with animation
@@ -1262,7 +1269,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       Matter.World.clear(world, false)
       Matter.Engine.clear(engine)
     }
-  }, [player1, player2, matchStartTime, mode, chaosRef]) // onVictory via ref
+  }, [player1, player2, matchStartTime, mode, chaosRef, map]) // onVictory via ref
 
   return (
     <canvas

@@ -13,9 +13,10 @@ const MAPS = [
 ]
 
 interface FamilyLobbyProps {
-  player1:   Character
-  player2?:  Character | null
-  mode?:     'solo' | '1v1'
+  player1:    Character
+  player2?:   Character | null
+  mode?:      'solo' | '1v1'
+  levelName?: string
   onStartMatch: () => void
   onSelectP2?:  () => void
   onBack:       () => void
@@ -53,7 +54,7 @@ function CharacterPortrait({ character }: { character: Character }) {
   )
 }
 
-export function FamilyLobby({ player1, player2, mode = '1v1', onStartMatch, onSelectP2, onBack }: FamilyLobbyProps) {
+export function FamilyLobby({ player1, player2, mode = '1v1', levelName, onStartMatch, onSelectP2, onBack }: FamilyLobbyProps) {
   const [mapIndex, setMapIndex] = useState(0)
   const map = MAPS[mapIndex]
 
@@ -88,6 +89,11 @@ export function FamilyLobby({ player1, player2, mode = '1v1', onStartMatch, onSe
           <h1 className="text-lg sm:text-2xl font-black uppercase tracking-widest text-white leading-tight">
             {mode === 'solo' ? 'Solo Lobby' : 'Match Lobby'}
           </h1>
+          {levelName && (
+            <p className="text-[10px] text-gray-500 mt-0.5 font-semibold uppercase tracking-wider">
+              Level: <span className="text-gray-300">{levelName}</span>
+            </p>
+          )}
         </div>
 
         <div className="w-16 sm:w-24" />

@@ -27,7 +27,10 @@ import { OnlineGateway } from '@/components/online/OnlineGateway'
 import { RoomCreator } from '@/components/online/RoomCreator'
 import { RoomJoiner } from '@/components/online/RoomJoiner'
 import { OnlineLobby } from '@/components/online/OnlineLobby'
+import { LevelSelect } from '@/components/screens/LevelSelect'
+import { ALL_LEVELS } from '@/lib/game/maps/levelRegistry'
 import { Character, GameScreen, GameMode } from '@/types/player'
+import type { LevelDef } from '@/types/game'
 import type { RoomPlayer } from '@/types/room'
 import { ChaosState, defaultChaosState } from '@/types/chaos'
 
@@ -45,13 +48,14 @@ interface VictoryData {
 }
 
 export default function Home() {
-  const [screen,       setScreen]      = useState<GameScreen>('main-menu')
-  const [gameMode,     setGameMode]    = useState<GameMode>('solo')
-  const [selectingFor, setSelectingFor] = useState<1 | 2>(1)
-  const [player1,      setPlayer1]     = useState<Character | null>(null)
-  const [player2,      setPlayer2]     = useState<Character | null>(null)
-  const [matchStart,   setMatchStart]  = useState(0)
-  const [victoryData,  setVictoryData] = useState<VictoryData | null>(null)
+  const [screen,        setScreen]       = useState<GameScreen>('main-menu')
+  const [gameMode,      setGameMode]     = useState<GameMode>('solo')
+  const [selectingFor,  setSelectingFor] = useState<1 | 2>(1)
+  const [player1,       setPlayer1]      = useState<Character | null>(null)
+  const [player2,       setPlayer2]      = useState<Character | null>(null)
+  const [matchStart,    setMatchStart]   = useState(0)
+  const [victoryData,   setVictoryData]  = useState<VictoryData | null>(null)
+  const [selectedLevel, setSelectedLevel] = useState<LevelDef>(ALL_LEVELS[0])
 
   // Overlays
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -102,9 +106,11 @@ export default function Home() {
     }
     if (selectingFor === 1) {
       setPlayer1(char)
-      if (gameMode === '1v1') { setSelectingFor(2) } else { setScreen('lobby') }
+      if (gameMode === '1v1') { setSelectingFor(2) }
+      else { setScreen('level-select') }
     } else {
-      setPlayer2(char); setScreen('lobby')
+      setPlayer2(char)
+      setScreen('level-select')
     }
   }
 
@@ -133,6 +139,16 @@ export default function Home() {
   ) => {
     setVictoryData({ winnerId, time, coins })
 
+    // Save level completion
+    const completedKey = 'swfcp_completed_levels'
+    try {
+      const completed: string[] = JSON.parse(localStorage.getItem(completedKey) ?? '[]')
+      if (!completed.includes(selectedLevel.id)) {
+        completed.push(selectedLevel.id)
+        localStorage.setItem(completedKey, JSON.stringify(completed))
+      }
+    } catch {}
+
     if (gameMode === 'solo' && player1) {
       LocalProfiles.recordSoloRun(player1.id, time, coins.p1)
     } else if ((gameMode === '1v1' || gameMode === 'online') && player1 && player2) {
@@ -149,7 +165,7 @@ export default function Home() {
     SeasonService.onMatchComplete({ won: winnerId === 1, coins: coins.p1 })
 
     setScreen(gameMode === 'solo' ? 'solo-victory' : 'victory')
-  }, [gameMode, player1, player2])
+  }, [gameMode, player1, player2, selectedLevel])
 
   function startNewGame() {
     chaosRef.current = defaultChaosState()
@@ -211,6 +227,20 @@ export default function Home() {
           </motion.div>
         )}
 
+        {/* ── Level Select ── */}
+        {screen === 'level-select' && (
+          <motion.div key="level-select" {...slide}>
+            <LevelSelect
+              onSelect={(level) => { setSelectedLevel(level); setScreen('lobby') }}
+              onBack={() => {
+                if (gameMode === '1v1') { setSelectingFor(2); setScreen('character-select') }
+                else { setSelectingFor(1); setScreen('character-select') }
+              }}
+              playerNumber={selectingFor}
+            />
+          </motion.div>
+        )}
+
         {/* ── Online Gateway ── */}
         {screen === 'online-gateway' && (
           <motion.div key="online-gateway" {...slide}>
@@ -266,11 +296,9 @@ export default function Home() {
               player1={player1}
               player2={player2}
               mode={gameMode === 'solo' ? 'solo' : '1v1'}
+              levelName={selectedLevel.name}
               onStartMatch={startNewGame}
-              onBack={() => {
-                if (gameMode === '1v1') { setSelectingFor(2); setScreen('character-select') }
-                else { setSelectingFor(1); setScreen('character-select') }
-              }}
+              onBack={() => setScreen('level-select')}
             />
           </motion.div>
         )}
@@ -289,6 +317,7 @@ export default function Home() {
                 mode={gameMode === 'solo' ? 'solo' : gameMode === 'online' ? 'online' : '1v1'}
                 onVictory={handleVictory}
                 chaosRef={chaosRef}
+                map={selectedLevel.map}
                 remoteGhosts={gameMode === 'online' ? remoteGhosts : undefined}
                 onTickSync={gameMode === 'online' ? publishState : undefined}
                 onFinishSync={gameMode === 'online' ? publishStateNow : undefined}

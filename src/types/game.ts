@@ -33,3 +33,14 @@ export interface MapDef {
   coinPositions?: CoinPosition[]
   soloHazards?:  SoloHazardDef[]
 }
+
+export interface LevelDef {
+  id: string
+  name: string
+  subtitle: string
+  difficulty: 'easy' | 'easy+' | 'medium' | 'medium+' | 'hard' | 'expert' | 'chaos'
+  difficultyNum: number  // 1-7
+  description: string
+  unlockReward: string   // what this level unlocks
+  map: MapDef
+}
