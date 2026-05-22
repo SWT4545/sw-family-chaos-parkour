@@ -1,0 +1,48 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Rooms ──────────────────────────────────────────────────────
+    match /swfcp_rooms/{roomCode} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+
+      match /players/{playerId} {
+        allow read: if true;
+        allow write: if true;
+      }
+    }
+
+    // ── Player profiles ────────────────────────────────────────────
+    match /swfcp_players/{playerId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // ── Cosmetic inventories ───────────────────────────────────────
+    match /swfcp_inventories/{playerId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // ── Season profiles ────────────────────────────────────────────
+    match /swfcp_seasons/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // ── Leaderboard ────────────────────────────────────────────────
+    match /swfcp_leaderboard/{entryId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // ── Music registry ─────────────────────────────────────────────
+    match /swfcp_musicRegistry/{trackId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}

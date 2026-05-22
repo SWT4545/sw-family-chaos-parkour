@@ -1,0 +1,20 @@
+{
+  "rules": {
+    "games": {
+      "$roomCode": {
+        "players": {
+          "$playerId": {
+            ".read": true,
+            ".write": true
+          }
+        },
+        "events": {
+          "$eventId": {
+            ".read": true,
+            ".write": true
+          }
+        }
+      }
+    }
+  }
+}

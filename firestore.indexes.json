@@ -1,0 +1,29 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "swfcp_leaderboard",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "category", "order": "ASCENDING" },
+        { "fieldPath": "score",    "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "swfcp_leaderboard",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "category", "order": "ASCENDING" },
+        { "fieldPath": "score",    "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "swfcp_rooms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status",    "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
