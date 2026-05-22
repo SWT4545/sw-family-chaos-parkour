@@ -28,11 +28,17 @@ import { RoomCreator } from '@/components/online/RoomCreator'
 import { RoomJoiner } from '@/components/online/RoomJoiner'
 import { OnlineLobby } from '@/components/online/OnlineLobby'
 import { LevelSelect } from '@/components/screens/LevelSelect'
+import { CourseSelect } from '@/components/screens/CourseSelect'
+import { CourseVictoryScreen } from '@/components/screens/CourseVictoryScreen'
 import { ALL_LEVELS } from '@/lib/game/maps/levelRegistry'
+import { getNextCourse } from '@/lib/game/maps/courses'
+import { CourseProgressionService } from '@/lib/profiles/CourseProgression'
 import { Character, GameScreen, GameMode } from '@/types/player'
-import type { LevelDef } from '@/types/game'
+import type { LevelDef, CourseDef, CourseDifficulty } from '@/types/game'
+import { DIFFICULTY_CONFIGS as DIFF_CONFIGS } from '@/types/game'
 import type { RoomPlayer } from '@/types/room'
 import { ChaosState, defaultChaosState } from '@/types/chaos'
+import type { CourseProgressionState } from '@/lib/profiles/CourseProgression'
 
 const slide = {
   initial:    { opacity: 0, scale: 0.98 },
@@ -56,6 +62,12 @@ export default function Home() {
   const [matchStart,    setMatchStart]   = useState(0)
   const [victoryData,   setVictoryData]  = useState<VictoryData | null>(null)
   const [selectedLevel, setSelectedLevel] = useState<LevelDef>(ALL_LEVELS[0])
+
+  // Course mode state
+  const [selectedCourse,     setSelectedCourse]     = useState<CourseDef | null>(null)
+  const [selectedDifficulty, setSelectedDifficulty] = useState<CourseDifficulty>('easy')
+  const [courseProgression,  setCourseProgression]  = useState<CourseProgressionState | null>(null)
+  const [courseVictoryData,  setCourseVictoryData]  = useState<{ newCourseUnlocked: boolean; newDifficultyUnlocked: boolean; badgeEarned?: string } | null>(null)
 
   // Overlays
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -107,7 +119,7 @@ export default function Home() {
     if (selectingFor === 1) {
       setPlayer1(char)
       if (gameMode === '1v1') { setSelectingFor(2) }
-      else { setScreen('level-select') }
+      else { setScreen('course-select') }
     } else {
       setPlayer2(char)
       setScreen('level-select')
@@ -164,8 +176,31 @@ export default function Home() {
 
     SeasonService.onMatchComplete({ won: winnerId === 1, coins: coins.p1 })
 
+    // Course mode — record progression and show course victory
+    if (gameMode === 'solo' && selectedCourse) {
+      const currentProgression = courseProgression ?? CourseProgressionService.load('rooftop-run')
+      const nextCourse = getNextCourse(selectedCourse.id)
+      const multiplier = DIFF_CONFIGS[selectedDifficulty].coinMultiplier
+      const result = CourseProgressionService.recordCompletion({
+        state:        currentProgression,
+        courseId:     selectedCourse.id,
+        nextCourseId: nextCourse?.id ?? null,
+        difficulty:   selectedDifficulty,
+        time,
+        coins:        Math.round(coins.p1 * multiplier),
+      })
+      setCourseProgression(result.state)
+      setCourseVictoryData({
+        newCourseUnlocked:    result.newCourseUnlocked,
+        newDifficultyUnlocked: result.newDifficultyUnlocked,
+        badgeEarned:          result.badgeEarned,
+      })
+      setScreen('course-victory')
+      return
+    }
+
     setScreen(gameMode === 'solo' ? 'solo-victory' : 'victory')
-  }, [gameMode, player1, player2, selectedLevel])
+  }, [gameMode, player1, player2, selectedLevel, selectedCourse, selectedDifficulty, courseProgression])
 
   function startNewGame() {
     chaosRef.current = defaultChaosState()
@@ -241,6 +276,74 @@ export default function Home() {
           </motion.div>
         )}
 
+        {/* ── Course Select ── */}
+        {screen === 'course-select' && (
+          <motion.div key="course-select" {...slide}>
+            <CourseSelect
+              onSelect={(course, difficulty) => {
+                setSelectedCourse(course)
+                setSelectedDifficulty(difficulty)
+                setSelectedLevel({
+                  id:           course.id,
+                  name:         course.name,
+                  subtitle:     course.subtitle,
+                  difficulty:   'easy',
+                  difficultyNum: course.courseNumber,
+                  description:  course.description,
+                  unlockReward: '',
+                  map:          course.map,
+                })
+                setScreen('lobby')
+              }}
+              onBack={() => { setSelectingFor(1); setScreen('character-select') }}
+              playerNumber={selectingFor}
+            />
+          </motion.div>
+        )}
+
+        {/* ── Course Victory ── */}
+        {screen === 'course-victory' && victoryData && player1 && selectedCourse && courseVictoryData && (
+          <motion.div key="course-victory" {...slide}>
+            <CourseVictoryScreen
+              player={player1}
+              course={selectedCourse}
+              difficulty={selectedDifficulty}
+              time={victoryData.time}
+              coins={victoryData.coins.p1}
+              newCourseUnlocked={courseVictoryData.newCourseUnlocked}
+              nextCourse={getNextCourse(selectedCourse.id)}
+              newDifficultyUnlocked={courseVictoryData.newDifficultyUnlocked}
+              badgeEarned={courseVictoryData.badgeEarned}
+              onNextCourse={() => {
+                const next = getNextCourse(selectedCourse.id)
+                if (next) {
+                  setSelectedCourse(next)
+                  setSelectedDifficulty('easy')
+                  setSelectedLevel({
+                    id:           next.id,
+                    name:         next.name,
+                    subtitle:     next.subtitle,
+                    difficulty:   'easy',
+                    difficultyNum: next.courseNumber,
+                    description:  next.description,
+                    unlockReward: '',
+                    map:          next.map,
+                  })
+                  chaosRef.current = defaultChaosState()
+                  setMatchStart(Date.now())
+                  setScreen('game')
+                }
+              }}
+              onReplayCourse={() => {
+                chaosRef.current = defaultChaosState()
+                setMatchStart(Date.now())
+                setScreen('game')
+              }}
+              onBackToHub={() => setScreen('main-menu')}
+            />
+          </motion.div>
+        )}
+
         {/* ── Online Gateway ── */}
         {screen === 'online-gateway' && (
           <motion.div key="online-gateway" {...slide}>
@@ -298,7 +401,7 @@ export default function Home() {
               mode={gameMode === 'solo' ? 'solo' : '1v1'}
               levelName={selectedLevel.name}
               onStartMatch={startNewGame}
-              onBack={() => setScreen('level-select')}
+              onBack={() => setScreen(gameMode === 'solo' ? 'course-select' : 'level-select')}
             />
           </motion.div>
         )}

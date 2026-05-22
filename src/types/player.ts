@@ -7,6 +7,8 @@ export type GameScreen =
   | 'mode-select'
   | 'character-select'
   | 'level-select'
+  | 'course-select'
+  | 'course-victory'
   | 'lobby'
   | 'online-gateway'
   | 'online-create'

@@ -816,7 +816,8 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
 
       const t = Date.now() / 1000
       for (const cp of activeMap.checkpoints) {
-        const pulse = 0.65 + 0.35 * Math.sin(t * 3.5 + cp.id * 1.2)
+        const cpId = cp.id ?? 0
+        const pulse = 0.65 + 0.35 * Math.sin(t * 3.5 + cpId * 1.2)
         ctx.save(); ctx.globalAlpha = pulse
         ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(cp.x, cp.y, 13, 0, Math.PI * 2); ctx.fill()
         ctx.restore()
@@ -824,7 +825,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
         ctx.font = '12px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
         ctx.fillStyle = '#1a1a2e'; ctx.fillText('★', cp.x, cp.y)
         ctx.font = 'bold 8px sans-serif'; ctx.textBaseline = 'bottom'
-        ctx.fillStyle = '#fbbf24'; ctx.fillText(`CP${cp.id}`, cp.x, cp.y - 15)
+        ctx.fillStyle = '#fbbf24'; ctx.fillText(`CP${cpId}`, cp.x, cp.y - 15)
       }
 
       const fx = activeMap.finishX, fy = activeMap.finishY
