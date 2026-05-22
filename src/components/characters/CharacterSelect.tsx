@@ -67,13 +67,11 @@ export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: Characte
       {/* ── Scrollable body ─────────────────────────────────────────── */}
       <div className="relative z-10 flex-1 overflow-y-auto overscroll-contain">
         <div
-          className="flex flex-col items-center px-4 pt-3 gap-0 sm:justify-center sm:min-h-full"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 120px)' }}
+          className="flex flex-col items-center px-4 pt-3 sm:justify-center sm:min-h-full"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 140px)' }}
         >
 
-          {/* Character card grid
-              Mobile:  2-column, aspect-[2/3] wrappers, gap 18px, pb 140px
-              Desktop: flex row, fixed dimensions */}
+          {/* Character card grid — 2-col mobile, flex row desktop */}
           <div
             className="grid grid-cols-2 sm:flex sm:flex-wrap sm:justify-center w-full sm:w-auto"
             style={{ gap: '18px', paddingBottom: '28px' }}
@@ -94,7 +92,7 @@ export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: Characte
             ))}
           </div>
 
-          {/* Detail panel — sits fully below the grid */}
+          {/* ── Detail panel ── fully below grid, single-col on mobile ── */}
           <AnimatePresence mode="wait">
             <motion.div
               key={focused.id}
@@ -103,62 +101,67 @@ export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: Characte
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.18, ease: 'easeOut' }}
               className="w-full max-w-xl"
+              style={{ marginTop: '28px' }}
             >
               <div
-                className="rounded-2xl border p-5 backdrop-blur-md"
+                className="rounded-2xl border backdrop-blur-md"
                 style={{
                   backgroundColor: 'rgba(10,10,10,0.88)',
                   borderColor:     `${focused.color}30`,
+                  padding:         '24px',
                 }}
               >
-                <div className="flex items-start justify-between gap-4 mb-5">
-                  {/* Name + quote */}
-                  <div className="min-w-0">
-                    <p
-                      className="text-[10px] uppercase tracking-widest font-bold mb-0.5"
-                      style={{ color: focused.color }}
-                    >
-                      {focused.role}
-                    </p>
-                    <h2 className="text-xl sm:text-2xl font-black uppercase text-white leading-none">
-                      {focused.name}
-                    </h2>
-                    <p className="text-gray-500 text-xs sm:text-sm mt-1.5 italic leading-snug">
-                      &ldquo;{focused.tagline}&rdquo;
-                    </p>
-                  </div>
-
-                  {/* Ability badge */}
-                  <div
-                    className="flex-shrink-0 rounded-xl px-4 py-3 text-right"
-                    style={{
-                      backgroundColor: `${focused.color}12`,
-                      border:          `1px solid ${focused.color}35`,
-                    }}
+                {/* Role + Name + Quote — always full width */}
+                <div className="mb-4">
+                  <p
+                    className="text-[11px] uppercase tracking-widest font-bold mb-1"
+                    style={{ color: focused.color }}
                   >
-                    <div className="flex items-center gap-1 justify-end mb-1">
-                      <Zap size={10} style={{ color: focused.color }} />
-                      <span
-                        className="text-[9px] uppercase tracking-wider font-bold"
-                        style={{ color: focused.color }}
-                      >
-                        Special Ability
-                      </span>
-                    </div>
-                    <p className="text-white font-black text-xs sm:text-sm uppercase">
-                      {focused.ability}
-                    </p>
-                    <p className="text-gray-500 text-[10px] mt-1 max-w-[160px] sm:max-w-[200px] leading-snug">
-                      {focused.abilityDesc}
-                    </p>
-                  </div>
+                    {focused.role}
+                  </p>
+                  <h2 className="text-2xl sm:text-3xl font-black uppercase text-white leading-none">
+                    {focused.name}
+                  </h2>
+                  <p className="text-gray-400 text-sm mt-2 italic leading-snug">
+                    &ldquo;{focused.tagline}&rdquo;
+                  </p>
                 </div>
 
-                {/* Select CTA */}
+                {/* Special Ability box — full width on mobile, inline on sm+ */}
+                <div
+                  className="w-full rounded-xl px-4 py-3"
+                  style={{
+                    backgroundColor: `${focused.color}12`,
+                    border:          `1px solid ${focused.color}35`,
+                    marginTop:       '16px',
+                  }}
+                >
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Zap size={12} style={{ color: focused.color }} />
+                    <span
+                      className="text-[10px] uppercase tracking-wider font-bold"
+                      style={{ color: focused.color }}
+                    >
+                      Special Ability
+                    </span>
+                  </div>
+                  <p className="text-white font-black text-sm sm:text-base uppercase">
+                    {focused.ability}
+                  </p>
+                  <p className="text-gray-400 text-xs mt-1 leading-snug">
+                    {focused.abilityDesc}
+                  </p>
+                </div>
+
+                {/* Select button — full width, 60px tall */}
                 <motion.button
                   onClick={() => onSelect(focused)}
-                  className="w-full py-4 rounded-xl font-black text-sm sm:text-base uppercase tracking-widest text-black"
-                  style={{ backgroundColor: '#eab308' }}
+                  className="w-full rounded-xl font-black text-base uppercase tracking-widest text-black flex items-center justify-center"
+                  style={{
+                    backgroundColor: '#eab308',
+                    height:          '60px',
+                    marginTop:       '24px',
+                  }}
                   whileHover={{ scale: 1.02, backgroundColor: '#fbbf24' }}
                   whileTap={{ scale: 0.97 }}
                 >
