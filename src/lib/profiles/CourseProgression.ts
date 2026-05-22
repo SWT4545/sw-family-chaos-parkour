@@ -42,7 +42,24 @@ export class CourseProgressionService {
   static load(firstCourseId: string): CourseProgressionState {
     try {
       const stored = localStorage.getItem(KEY)
-      if (stored) return JSON.parse(stored) as CourseProgressionState
+      if (stored) {
+        const state = JSON.parse(stored) as CourseProgressionState
+        // Repair corrupted state — first course must always be unlocked
+        const ids: string[] = Array.isArray(state.unlockedCourseIds) ? state.unlockedCourseIds : []
+        if (!ids.includes(firstCourseId)) {
+          state.unlockedCourseIds = [firstCourseId, ...ids]
+          if (!state.courseProgress) state.courseProgress = {}
+          if (!state.courseProgress[firstCourseId]) {
+            state.courseProgress[firstCourseId] = {
+              courseId: firstCourseId,
+              unlockedDifficulties: ['easy'],
+              completedRuns: [], bestTimes: {}, earnedBadges: [],
+            }
+          }
+          CourseProgressionService.save(state)
+        }
+        return state
+      }
     } catch {}
     const state = defaultState(firstCourseId)
     CourseProgressionService.save(state)

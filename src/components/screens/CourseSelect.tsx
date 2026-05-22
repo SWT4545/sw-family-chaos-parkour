@@ -1,7 +1,7 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, Lock, Trophy, Clock, Coins } from 'lucide-react'
+import { ChevronLeft, Lock, Trophy, Clock, Coins, ChevronRight } from 'lucide-react'
 import type { CourseDef, CourseDifficulty } from '@/types/game'
 import { DIFFICULTY_CONFIGS } from '@/types/game'
 import { ALL_COURSES } from '@/lib/game/maps/courses'
@@ -9,61 +9,84 @@ import { CourseProgressionService } from '@/lib/profiles/CourseProgression'
 import type { CourseProgressionState } from '@/lib/profiles/CourseProgression'
 
 interface Props {
-  onSelect: (course: CourseDef, difficulty: CourseDifficulty) => void
-  onBack: () => void
+  onSelect:      (course: CourseDef, difficulty: CourseDifficulty) => void
+  onBack:        () => void
   playerNumber?: 1 | 2
 }
 
-const DIFFICULTY_ORDER: CourseDifficulty[] = ['easy', 'medium', 'hard', 'master']
+const DIFF_ORDER: CourseDifficulty[] = ['easy', 'medium', 'hard', 'master']
 
-function fmtTime(s: number): string {
-  const m   = Math.floor(s / 60)
-  const sec = Math.floor(s % 60)
-  return `${m}:${sec.toString().padStart(2, '0')}`
+function fmtTime(s: number) {
+  return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 }
 
-export function CourseSelect({ onSelect, onBack, playerNumber }: Props) {
-  const [progression,        setProgression]        = useState<CourseProgressionState | null>(null)
-  const [selectedCourse,     setSelectedCourse]     = useState<CourseDef | null>(null)
-  const [selectedDifficulty, setSelectedDifficulty] = useState<CourseDifficulty | null>(null)
+// ID of the first course — used as the always-unlocked anchor
+const FIRST_COURSE_ID = ALL_COURSES[0]?.id ?? 'rooftop-run'
 
+export function CourseSelect({ onSelect, onBack, playerNumber }: Props) {
+  const [progression,    setProgression]    = useState<CourseProgressionState | null>(null)
+  const [selectedCourse, setSelectedCourse] = useState<CourseDef | null>(null)
+  const [selectedDiff,   setSelectedDiff]   = useState<CourseDifficulty>('easy')
+  const [lockMsg,        setLockMsg]        = useState<string | null>(null)
+  const lockMsgTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Load progression and auto-select first unlocked course
   useEffect(() => {
-    const state = CourseProgressionService.load('rooftop-run')
+    const state = CourseProgressionService.load(FIRST_COURSE_ID)
     setProgression(state)
+
+    // Auto-select: pick the first course the player can actually play
+    const firstUnlocked = ALL_COURSES.find(c => state.unlockedCourseIds.includes(c.id))
+    if (firstUnlocked) {
+      setSelectedCourse(firstUnlocked)
+      // Auto-select first unlocked difficulty for this course
+      const progress = state.courseProgress[firstUnlocked.id]
+      const firstDiff = progress?.unlockedDifficulties?.[0] ?? 'easy'
+      setSelectedDiff(firstDiff)
+    }
   }, [])
 
-  const isCourseUnlocked = (course: CourseDef): boolean => {
-    if (!progression) return course.courseNumber === 1
-    return progression.unlockedCourseIds.includes(course.id)
+  const isCourseUnlocked = (c: CourseDef) =>
+    !progression ? c.courseNumber === 1 : progression.unlockedCourseIds.includes(c.id)
+
+  const isDiffUnlocked = (c: CourseDef, d: CourseDifficulty) => {
+    if (!progression) return d === 'easy'
+    const p = progression.courseProgress[c.id]
+    return p ? p.unlockedDifficulties.includes(d) : d === 'easy'
   }
 
-  const isDifficultyUnlocked = (course: CourseDef, diff: CourseDifficulty): boolean => {
-    if (!progression) return diff === 'easy'
-    const progress = progression.courseProgress[course.id]
-    if (!progress) return diff === 'easy'
-    return progress.unlockedDifficulties.includes(diff)
+  const handleCourseTap = (course: CourseDef) => {
+    if (!isCourseUnlocked(course)) {
+      if (lockMsgTimer.current) clearTimeout(lockMsgTimer.current)
+      setLockMsg(`Complete Course ${course.courseNumber - 1} on Easy to unlock`)
+      lockMsgTimer.current = setTimeout(() => setLockMsg(null), 2400)
+      return
+    }
+    setSelectedCourse(course)
+    // Pick first unlocked difficulty for the newly selected course
+    const progress = progression?.courseProgress[course.id]
+    const firstDiff = progress?.unlockedDifficulties?.[0] ?? 'easy'
+    setSelectedDiff(firstDiff)
   }
 
-  const getCourseProgress = (course: CourseDef) => {
-    if (!progression) return null
-    return progression.courseProgress[course.id] ?? null
-  }
-
-  const canPlay = selectedCourse && selectedDifficulty
+  const canPlay = selectedCourse !== null && isCourseUnlocked(selectedCourse)
+  const unlockedCount = progression ? progression.unlockedCourseIds.length : 1
 
   return (
     <div
-      className="relative min-h-dvh bg-[#080808] flex flex-col overflow-hidden"
-      style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}
+      className="relative min-h-dvh bg-[#080808] flex flex-col"
+      style={{
+        paddingTop:    'env(safe-area-inset-top)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)',
+      }}
     >
       {/* Ambient glow */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-yellow-500/8 blur-[140px]" />
-        <div className="absolute -bottom-40 -right-40 w-[500px] h-[500px] rounded-full bg-orange-500/6 blur-[140px]" />
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full bg-yellow-500/6 blur-[120px]" />
       </div>
 
-      {/* Header */}
-      <div className="relative z-10 flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/[0.06]">
+      {/* ── Header ── */}
+      <div className="relative z-10 flex items-center justify-between px-5 pt-4 pb-3 border-b border-white/[0.06]">
         <button
           onClick={onBack}
           className="flex items-center gap-1.5 text-gray-500 hover:text-white transition-colors"
@@ -78,86 +101,142 @@ export function CourseSelect({ onSelect, onBack, playerNumber }: Props) {
               Player {playerNumber}
             </p>
           )}
-          <h1 className="text-xl font-black uppercase tracking-widest text-white leading-tight">
+          <h1 className="text-lg font-black uppercase tracking-widest text-white leading-tight">
             Select Course
           </h1>
-          <p className="text-[11px] text-gray-500 mt-0.5">
-            {progression ? progression.unlockedCourseIds.length : 1} / {ALL_COURSES.length} unlocked
+          <p className="text-[10px] text-gray-600 mt-0.5">
+            {unlockedCount} / {ALL_COURSES.length} unlocked
           </p>
         </div>
 
         <div className="w-20" />
       </div>
 
-      {/* Content */}
-      <div className="relative z-10 flex-1 overflow-y-auto px-4 py-5">
-        <div className="max-w-2xl mx-auto space-y-3">
+      {/* ── Active course summary bar ── */}
+      <AnimatePresence>
+        {selectedCourse && (
+          <motion.div
+            key="summary"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="relative z-10 overflow-hidden"
+          >
+            <div
+              className="mx-4 mt-3 rounded-2xl px-4 py-3 flex items-center gap-3"
+              style={{
+                background: 'rgba(251,191,36,0.07)',
+                border:     '1px solid rgba(251,191,36,0.20)',
+              }}
+            >
+              {/* Course number */}
+              <div
+                className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm"
+                style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}
+              >
+                {selectedCourse.courseNumber}
+              </div>
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-white text-sm uppercase tracking-wide truncate">
+                  {selectedCourse.name}
+                </p>
+                <p className="text-[10px] text-gray-500 truncate">{selectedCourse.subtitle}</p>
+              </div>
+              {/* Difficulty pill */}
+              <div
+                className="flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                style={{
+                  background: `${DIFFICULTY_CONFIGS[selectedDiff].color}20`,
+                  color:      DIFFICULTY_CONFIGS[selectedDiff].color,
+                  border:     `1px solid ${DIFFICULTY_CONFIGS[selectedDiff].color}40`,
+                }}
+              >
+                {DIFFICULTY_CONFIGS[selectedDiff].label}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-          {/* Course cards */}
+      {/* ── Lock toast ── */}
+      <AnimatePresence>
+        {lockMsg && (
+          <motion.div
+            key="lockmsg"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="relative z-20 mx-4 mt-2 rounded-xl px-4 py-2.5 flex items-center gap-2"
+            style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)' }}
+          >
+            <Lock size={13} className="text-red-400 flex-shrink-0" />
+            <span className="text-xs font-semibold text-red-300">{lockMsg}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Scroll hint ── */}
+      <div className="relative z-10 flex items-center gap-2 px-5 mt-3 mb-1">
+        <p className="text-[10px] text-gray-700 uppercase tracking-wider font-bold flex-1">
+          Courses
+        </p>
+        <ChevronRight size={12} className="text-gray-700" />
+        <p className="text-[10px] text-gray-700 font-medium">scroll to see all</p>
+      </div>
+
+      {/* ── Course list ── */}
+      <div className="relative z-10 flex-1 overflow-y-auto px-4 pb-2">
+        <div className="max-w-2xl mx-auto space-y-2.5 pt-1 pb-2">
           {ALL_COURSES.map((course, idx) => {
             const unlocked  = isCourseUnlocked(course)
-            const progress  = getCourseProgress(course)
             const selected  = selectedCourse?.id === course.id
+            const progress  = progression?.courseProgress[course.id]
             const bestDiff  = progress?.bestDifficultyCompleted
-            const bestDiffConfig = bestDiff ? DIFFICULTY_CONFIGS[bestDiff] : null
+            const bestCfg   = bestDiff ? DIFFICULTY_CONFIGS[bestDiff] : null
 
             return (
               <motion.div
                 key={course.id}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: idx * 0.07, ease: 'easeOut' }}
+                transition={{ duration: 0.28, delay: idx * 0.06, ease: 'easeOut' }}
               >
+                {/* Course card */}
                 <button
-                  onClick={() => {
-                    if (!unlocked) return
-                    setSelectedCourse(course)
-                    setSelectedDifficulty(null)
-                  }}
-                  disabled={!unlocked}
-                  className="w-full text-left rounded-2xl border transition-all duration-200 overflow-hidden"
+                  onClick={() => handleCourseTap(course)}
+                  className="w-full text-left rounded-2xl border transition-all duration-200 relative overflow-hidden"
                   style={{
                     backgroundColor: selected
                       ? 'rgba(251,191,36,0.07)'
                       : unlocked
                         ? 'rgba(255,255,255,0.03)'
-                        : 'rgba(0,0,0,0.4)',
+                        : 'rgba(0,0,0,0.35)',
                     borderColor: selected
-                      ? '#fbbf24'
+                      ? 'rgba(251,191,36,0.50)'
                       : unlocked
                         ? 'rgba(255,255,255,0.08)'
                         : 'rgba(255,255,255,0.04)',
-                    boxShadow: selected ? '0 0 24px rgba(251,191,36,0.15)' : 'none',
-                    cursor: unlocked ? 'pointer' : 'not-allowed',
+                    boxShadow: selected ? '0 0 20px rgba(251,191,36,0.12)' : 'none',
                   }}
                 >
-                  {/* Lock overlay */}
-                  {!unlocked && (
-                    <div className="absolute inset-0 rounded-2xl bg-black/60 backdrop-blur-[1px] flex items-center justify-center z-10">
-                      <div className="flex flex-col items-center gap-1.5">
-                        <Lock size={20} className="text-gray-600" />
-                        <span className="text-[10px] text-gray-600 font-semibold uppercase tracking-wider text-center px-4">
-                          Complete Course {course.courseNumber - 1} on Easy to unlock
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="relative p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      {/* Course number badge */}
+                  <div className="p-3.5">
+                    <div className="flex items-center gap-3">
+                      {/* Number badge */}
                       <div
-                        className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg"
+                        className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm"
                         style={{
-                          backgroundColor: unlocked ? 'rgba(251,191,36,0.12)' : 'rgba(255,255,255,0.04)',
-                          color: unlocked ? '#fbbf24' : '#444',
-                          border: `1.5px solid ${unlocked ? 'rgba(251,191,36,0.3)' : 'rgba(255,255,255,0.06)'}`,
+                          background: unlocked ? 'rgba(251,191,36,0.12)' : 'rgba(255,255,255,0.04)',
+                          color:      unlocked ? '#fbbf24' : '#333',
+                          border:     `1.5px solid ${unlocked ? 'rgba(251,191,36,0.25)' : 'rgba(255,255,255,0.05)'}`,
                         }}
                       >
-                        {course.courseNumber}
+                        {unlocked ? course.courseNumber : <Lock size={14} color="#444" />}
                       </div>
 
-                      {/* Course info */}
+                      {/* Text */}
                       <div className="flex-1 min-w-0">
                         <h3
                           className="font-black text-sm uppercase leading-tight tracking-wide"
@@ -165,133 +244,98 @@ export function CourseSelect({ onSelect, onBack, playerNumber }: Props) {
                         >
                           {course.name}
                         </h3>
-                        <p
-                          className="text-[11px] font-semibold mt-0.5"
-                          style={{ color: unlocked ? '#888' : '#333' }}
-                        >
-                          {course.subtitle}
-                        </p>
-                        <p
-                          className="text-[10px] mt-1.5 leading-relaxed"
-                          style={{ color: unlocked ? '#555' : '#2a2a2a' }}
-                        >
-                          {course.description}
+                        <p className="text-[10px] mt-0.5" style={{ color: unlocked ? '#666' : '#2a2a2a' }}>
+                          {unlocked ? course.subtitle : `Locked — complete Course ${course.courseNumber - 1}`}
                         </p>
                       </div>
 
-                      {/* Best stats */}
-                      {unlocked && progress && bestDiff && (
-                        <div className="flex-shrink-0 text-right">
-                          <div
-                            className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider mb-1"
-                            style={{
-                              backgroundColor: `${bestDiffConfig!.color}20`,
-                              color: bestDiffConfig!.color,
-                              border: `1px solid ${bestDiffConfig!.color}40`,
-                            }}
-                          >
-                            {bestDiffConfig!.label}
-                          </div>
-                          {progress.bestTimes[bestDiff] && (
-                            <div className="flex items-center gap-1 justify-end text-gray-500 text-[10px]">
-                              <Clock size={9} />
-                              <span>{fmtTime(progress.bestTimes[bestDiff]!)}</span>
-                            </div>
-                          )}
+                      {/* Best badge */}
+                      {unlocked && bestDiff && bestCfg && (
+                        <div
+                          className="flex-shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase"
+                          style={{ background: `${bestCfg.color}18`, color: bestCfg.color, border: `1px solid ${bestCfg.color}35` }}
+                        >
+                          {bestCfg.label}
                         </div>
                       )}
-
-                      {unlocked && !progress?.bestDifficultyCompleted && (
-                        <div className="flex-shrink-0">
-                          <Trophy size={14} className="text-gray-700" />
-                        </div>
+                      {unlocked && !bestDiff && (
+                        <Trophy size={14} color="#333" className="flex-shrink-0" />
                       )}
                     </div>
+
+                    {/* Best time row */}
+                    {unlocked && progress && bestDiff && progress.bestTimes[bestDiff] && (
+                      <div className="flex items-center gap-1 mt-2 ml-12">
+                        <Clock size={10} color="#555" />
+                        <span className="text-[10px] text-gray-600 font-medium">
+                          Best: {fmtTime(progress.bestTimes[bestDiff]!)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </button>
 
-                {/* Difficulty picker — shown when this course is selected */}
+                {/* Difficulty picker — inline under selected course */}
                 <AnimatePresence>
-                  {selected && (
+                  {selected && unlocked && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.22, ease: 'easeInOut' }}
+                      transition={{ duration: 0.2, ease: 'easeInOut' }}
                       className="overflow-hidden"
                     >
-                      <div className="mt-2 px-1">
-                        <p className="text-[10px] uppercase tracking-widest text-gray-600 font-bold mb-2 px-1">
-                          Select Difficulty
+                      <div
+                        className="mt-1.5 rounded-xl px-3 py-3"
+                        style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}
+                      >
+                        <p className="text-[9px] uppercase tracking-widest text-gray-600 font-bold mb-2">
+                          Difficulty
                         </p>
-                        <div className="grid grid-cols-4 gap-2">
-                          {DIFFICULTY_ORDER.map((diff) => {
-                            const config   = DIFFICULTY_CONFIGS[diff]
-                            const diffUnlocked = isDifficultyUnlocked(course, diff)
-                            const isSelected   = selectedDifficulty === diff
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {DIFF_ORDER.map((diff) => {
+                            const cfg          = DIFFICULTY_CONFIGS[diff]
+                            const diffUnlocked = isDiffUnlocked(course, diff)
+                            const isActive     = selectedDiff === diff
 
                             return (
                               <button
                                 key={diff}
-                                onClick={() => diffUnlocked && setSelectedDifficulty(diff)}
+                                onClick={() => diffUnlocked && setSelectedDiff(diff)}
                                 disabled={!diffUnlocked}
-                                className="relative rounded-xl p-2.5 text-center transition-all duration-150"
+                                className="rounded-xl py-2.5 text-center transition-all duration-150 relative"
                                 style={{
-                                  backgroundColor: isSelected
-                                    ? `${config.color}22`
-                                    : diffUnlocked
-                                      ? 'rgba(255,255,255,0.04)'
-                                      : 'rgba(0,0,0,0.3)',
-                                  borderWidth: '1.5px',
-                                  borderStyle: 'solid',
-                                  borderColor: isSelected
-                                    ? config.color
-                                    : diffUnlocked
-                                      ? `${config.color}40`
-                                      : 'rgba(255,255,255,0.05)',
-                                  boxShadow: isSelected ? `0 0 16px ${config.color}30` : 'none',
-                                  cursor: diffUnlocked ? 'pointer' : 'not-allowed',
-                                  opacity: diffUnlocked ? 1 : 0.4,
+                                  background:    isActive ? `${cfg.color}22` : diffUnlocked ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.3)',
+                                  borderWidth:  '1.5px',
+                                  borderStyle:  'solid',
+                                  borderColor:   isActive ? cfg.color : diffUnlocked ? `${cfg.color}35` : 'rgba(255,255,255,0.04)',
+                                  boxShadow:     isActive ? `0 0 12px ${cfg.color}28` : 'none',
+                                  cursor:        diffUnlocked ? 'pointer' : 'not-allowed',
+                                  opacity:       diffUnlocked ? 1 : 0.38,
                                 }}
                               >
-                                {!diffUnlocked && (
-                                  <Lock size={10} className="mx-auto mb-1 text-gray-600" />
-                                )}
+                                {!diffUnlocked && <Lock size={9} color="#444" className="mx-auto mb-0.5" />}
                                 <div
-                                  className="font-black text-[11px] uppercase tracking-wide leading-tight"
-                                  style={{ color: diffUnlocked ? config.color : '#444' }}
+                                  className="font-black text-[10px] uppercase tracking-wide"
+                                  style={{ color: diffUnlocked ? cfg.color : '#333' }}
                                 >
-                                  {config.label}
+                                  {cfg.label}
                                 </div>
-                                <div className="flex items-center justify-center gap-0.5 mt-1">
-                                  <Coins size={8} style={{ color: diffUnlocked ? '#fbbf24' : '#333' }} />
-                                  <span
-                                    className="text-[9px] font-bold"
-                                    style={{ color: diffUnlocked ? '#fbbf24' : '#333' }}
-                                  >
-                                    x{config.coinMultiplier}
+                                <div className="flex items-center justify-center gap-0.5 mt-0.5">
+                                  <Coins size={7} color={diffUnlocked ? '#fbbf24' : '#333'} />
+                                  <span className="text-[8px] font-bold" style={{ color: diffUnlocked ? '#fbbf24' : '#333' }}>
+                                    x{cfg.coinMultiplier}
                                   </span>
                                 </div>
-                                {!diffUnlocked && (
-                                  <p className="text-[8px] text-gray-700 mt-1 leading-tight">
-                                    Beat {DIFFICULTY_CONFIGS[DIFFICULTY_ORDER[DIFFICULTY_ORDER.indexOf(diff) - 1]].label}
-                                  </p>
-                                )}
                               </button>
                             )
                           })}
                         </div>
 
                         {/* Coin hint */}
-                        {selectedDifficulty && (
-                          <motion.p
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="text-[10px] text-yellow-500/70 text-center mt-2 font-medium"
-                          >
-                            x{DIFFICULTY_CONFIGS[selectedDifficulty].coinMultiplier} coin reward on this difficulty
-                          </motion.p>
-                        )}
+                        <p className="text-[10px] text-yellow-500/60 text-center mt-2 font-medium">
+                          x{DIFFICULTY_CONFIGS[selectedDiff].coinMultiplier} coin multiplier
+                        </p>
                       </div>
                     </motion.div>
                   )}
@@ -302,28 +346,33 @@ export function CourseSelect({ onSelect, onBack, playerNumber }: Props) {
         </div>
       </div>
 
-      {/* Play button */}
-      <AnimatePresence>
-        {canPlay && (
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 24 }}
-            transition={{ duration: 0.22 }}
-            className="relative z-10 flex-shrink-0 px-5 pb-2"
-          >
-            <motion.button
-              onClick={() => onSelect(selectedCourse!, selectedDifficulty!)}
-              className="w-full rounded-2xl font-black text-base uppercase tracking-widest text-black"
-              style={{ height: '60px', backgroundColor: '#fbbf24' }}
-              whileHover={{ scale: 1.02, backgroundColor: '#f59e0b' }}
-              whileTap={{ scale: 0.97 }}
-            >
-              PLAY {selectedCourse!.name} — {DIFFICULTY_CONFIGS[selectedDifficulty!].label} →
-            </motion.button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* ── Start button — always visible ── */}
+      <div
+        className="relative z-10 flex-shrink-0 px-4 pt-2"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
+      >
+        <motion.button
+          onClick={() => {
+            if (canPlay) onSelect(selectedCourse!, selectedDiff)
+          }}
+          disabled={!canPlay}
+          className="w-full rounded-2xl font-black text-base uppercase tracking-widest transition-all duration-200"
+          style={{
+            height:          '60px',
+            backgroundColor: canPlay ? '#fbbf24' : 'rgba(255,255,255,0.06)',
+            color:           canPlay ? '#0a0a0a' : '#333',
+            border:          canPlay ? 'none' : '1px solid rgba(255,255,255,0.06)',
+            cursor:          canPlay ? 'pointer' : 'not-allowed',
+            boxShadow:       canPlay ? '0 0 24px rgba(251,191,36,0.30)' : 'none',
+          }}
+          whileHover={canPlay ? { scale: 1.02 } : {}}
+          whileTap={canPlay   ? { scale: 0.97 } : {}}
+        >
+          {canPlay
+            ? `START COURSE — ${DIFFICULTY_CONFIGS[selectedDiff].label}`
+            : 'SELECT A COURSE TO START'}
+        </motion.button>
+      </div>
     </div>
   )
 }
