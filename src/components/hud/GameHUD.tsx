@@ -55,10 +55,10 @@ export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode }: Pr
             />
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-wider font-bold text-yellow-500 hidden sm:block">
+            <p className="text-[10px] uppercase tracking-wider font-bold text-yellow-500 hidden lg:block">
               {mode === 'solo' ? 'SOLO · WASD' : 'P1 · WASD'}
             </p>
-            <p className="text-[10px] uppercase tracking-wider font-bold text-yellow-500 sm:hidden">
+            <p className="text-[10px] uppercase tracking-wider font-bold text-yellow-500 lg:hidden">
               {mode === 'solo' ? 'SOLO' : 'P1'}
             </p>
             <p className="text-white font-black text-xs uppercase leading-tight truncate">{player1.name}</p>
@@ -89,8 +89,8 @@ export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode }: Pr
             style={{ borderColor: `${player2?.color ?? '#3b82f6'}40` }}
           >
             <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-wider font-bold text-blue-400 hidden sm:block">P2 · Arrows</p>
-              <p className="text-[10px] uppercase tracking-wider font-bold text-blue-400 sm:hidden">P2</p>
+              <p className="text-[10px] uppercase tracking-wider font-bold text-blue-400 hidden lg:block">P2 · Arrows</p>
+              <p className="text-[10px] uppercase tracking-wider font-bold text-blue-400 lg:hidden">P2</p>
               <p className="text-white font-black text-xs uppercase leading-tight truncate">
                 {player2?.name ?? 'Open'}
               </p>
@@ -124,7 +124,7 @@ export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode }: Pr
       <div className="flex-1" />
 
       {/* Bottom hint — desktop only */}
-      <div className="hidden sm:flex justify-center pb-2">
+      <div className="hidden lg:flex justify-center pb-2">
         <div className="rounded-lg px-3 py-1 bg-black/50 backdrop-blur-sm border border-white/5">
           <p className="text-[9px] text-gray-600 uppercase tracking-widest">
             {mode === 'solo'

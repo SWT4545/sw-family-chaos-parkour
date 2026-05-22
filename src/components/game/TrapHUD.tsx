@@ -66,7 +66,7 @@ function PlayerPanel({ player, state, side, keyHint }: PlayerPanelProps) {
           {state.trapName || '—'}
         </p>
         {/* Key hint — hidden on touch/mobile */}
-        <p className="text-[8px] text-gray-600 uppercase tracking-widest hidden sm:block">
+        <p className="text-[8px] text-gray-600 uppercase tracking-widest hidden lg:block">
           Press&nbsp;<span className="text-gray-400 font-bold">{keyHint}</span>
         </p>
       </div>

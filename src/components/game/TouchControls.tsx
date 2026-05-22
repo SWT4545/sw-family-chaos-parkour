@@ -168,7 +168,7 @@ export function TouchControls({ mode = 'solo' }: TouchControlsProps) {
 
   return (
     <div
-      className="pointer-events-none absolute inset-0 flex items-end md:hidden z-20"
+      className="pointer-events-none absolute inset-0 flex items-end lg:hidden z-20"
       style={{
         justifyContent: showP2 ? 'space-between' : 'flex-start',
         paddingLeft:  showP2 ? '8px' : '12px',

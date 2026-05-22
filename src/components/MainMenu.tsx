@@ -29,7 +29,7 @@ const fadeUp: Variants = {
 function MobileMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onShop, onSeason }: MainMenuProps) {
   return (
     <div
-      className="sm:hidden flex flex-col bg-black h-dvh overflow-y-auto"
+      className="lg:hidden flex flex-col bg-black h-dvh overflow-y-auto"
       style={{
         paddingTop:    'env(safe-area-inset-top)',
         paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
@@ -37,7 +37,8 @@ function MobileMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onSh
     >
       {/* Header */}
       <motion.div
-        className="flex-shrink-0 pt-5 pb-1 text-center"
+        className="flex-shrink-0 pb-1 text-center"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 20px)' }}
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
@@ -144,7 +145,7 @@ function MobileMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onSh
 
 function DesktopMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onShop, onSeason }: MainMenuProps) {
   return (
-    <div className="hidden sm:flex flex-col relative h-dvh overflow-hidden bg-black">
+    <div className="hidden lg:flex flex-col relative h-dvh overflow-hidden bg-black">
       {/* Full-bleed poster */}
       <div className="absolute inset-0">
         <Image
@@ -160,7 +161,8 @@ function DesktopMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onS
 
       {/* Top badge */}
       <motion.div
-        className="relative z-10 pt-6 text-center"
+        className="relative z-10 text-center flex-shrink-0"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 28px)' }}
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
