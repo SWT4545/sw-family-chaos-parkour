@@ -89,7 +89,6 @@ export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: Characte
                   onSelect={() => setFocused(char)}
                   size="lg"
                   sizeClassName="w-full h-full"
-                  showTextOverlay={false}
                 />
               </div>
             ))}
