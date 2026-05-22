@@ -35,7 +35,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     >
-      <body className="flex flex-col">{children}</body>
+      <body style={{ background: '#080808', color: '#f1f5f9', minHeight: '100dvh' }}>{children}</body>
     </html>
   );
 }

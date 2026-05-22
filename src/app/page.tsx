@@ -209,7 +209,7 @@ export default function Home() {
   }
 
   return (
-    <div className="h-dvh bg-black overflow-hidden">
+    <div style={{ height: '100dvh', background: '#080808', overflow: 'hidden', position: 'relative' }}>
 
       {/* Global overlays — persist across screens */}
       <SettingsPanel      open={settingsOpen} onClose={() => setSettingsOpen(false)} />
@@ -408,10 +408,28 @@ export default function Home() {
 
         {/* ── Game ── */}
         {screen === 'game' && player1 && (
-          <motion.div key="game" {...slide} className="relative h-dvh bg-[#060610] flex items-center justify-center overflow-hidden">
+          <motion.div
+            key="game"
+            {...slide}
+            style={{
+              position: 'relative',
+              height: '100dvh',
+              background: '#060610',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Canvas box — fills width on portrait, fills height on landscape */}
             <div
-              className="relative w-full max-w-[960px] aspect-video"
-              style={{ maxHeight: '100dvh' }}
+              style={{
+                position: 'relative',
+                width:  'min(100vw, calc(100dvh * 16 / 9))',
+                height: 'min(100dvh, calc(100vw * 9 / 16))',
+                maxWidth: '960px',
+                maxHeight: '540px',
+              }}
             >
               <GameCanvas
                 player1={player1}

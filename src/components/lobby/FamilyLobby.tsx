@@ -90,7 +90,8 @@ export function FamilyLobby({ player1, player2, mode = '1v1', levelName, onStart
       </div>
 
       {/* Main content */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center gap-5 px-5 pb-8">
+      <div className="relative z-10 flex-1 overflow-y-auto overscroll-contain">
+      <div className="flex flex-col items-center gap-5 px-5 pt-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}>
 
         {/* Players row */}
         <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-10 w-full max-w-2xl">
@@ -182,6 +183,7 @@ export function FamilyLobby({ player1, player2, mode = '1v1', levelName, onStart
         >
           START MATCH ▶
         </motion.button>
+      </div>
       </div>
     </div>
   )
