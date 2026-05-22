@@ -4,10 +4,12 @@ import { Settings } from 'lucide-react'
 import { motion, type Variants } from 'framer-motion'
 
 interface MainMenuProps {
-  onPlay:           () => void
-  onLeaderboard:    () => void
+  onPlay:            () => void
+  onLeaderboard:     () => void
   onDailyChallenges: () => void
-  onSettings:       () => void
+  onSettings:        () => void
+  onShop:            () => void
+  onSeason:          () => void
 }
 
 const stagger: Variants = {
@@ -24,7 +26,7 @@ const fadeUp: Variants = {
 // Normal document flow: header → poster → actions → footer.
 // No content overlaid on the poster.
 
-function MobileMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings }: MainMenuProps) {
+function MobileMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onShop, onSeason }: MainMenuProps) {
   return (
     <div
       className="sm:hidden flex flex-col bg-black h-dvh overflow-y-auto"
@@ -85,7 +87,7 @@ function MobileMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings }: Ma
           ▶ &nbsp;PLAY
         </motion.button>
 
-        {/* Secondary buttons */}
+        {/* Secondary buttons row 1 */}
         <motion.div variants={fadeUp} className="flex w-full max-w-xs mt-4" style={{ gap: '14px' }}>
           <button
             onClick={onLeaderboard}
@@ -103,8 +105,26 @@ function MobileMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings }: Ma
           </button>
         </motion.div>
 
+        {/* Secondary buttons row 2 */}
+        <motion.div variants={fadeUp} className="flex w-full max-w-xs mt-2" style={{ gap: '14px' }}>
+          <button
+            onClick={onShop}
+            className="flex-1 font-bold text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10 rounded-xl"
+            style={{ height: '48px' }}
+          >
+            Shop 🛍️
+          </button>
+          <button
+            onClick={onSeason}
+            className="flex-1 font-bold text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10 rounded-xl"
+            style={{ height: '48px' }}
+          >
+            Season ⭐
+          </button>
+        </motion.div>
+
         {/* Settings + copyright row */}
-        <motion.div variants={fadeUp} className="flex items-center justify-between w-full max-w-xs mt-4">
+        <motion.div variants={fadeUp} className="flex items-center justify-between w-full max-w-xs mt-3">
           <p className="text-gray-700 text-[10px]">© S&amp;W Family Chaos Parkour</p>
           <button
             onClick={onSettings}
@@ -122,7 +142,7 @@ function MobileMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings }: Ma
 // ─── Desktop layout ───────────────────────────────────────────────────────────
 // Cinematic full-bleed poster with gradient overlay + bottom navigation.
 
-function DesktopMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings }: MainMenuProps) {
+function DesktopMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onShop, onSeason }: MainMenuProps) {
   return (
     <div className="hidden sm:flex flex-col relative h-dvh overflow-hidden bg-black">
       {/* Full-bleed poster */}
@@ -177,17 +197,20 @@ function DesktopMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings }: M
         </motion.button>
 
         <motion.div variants={fadeUp} className="flex gap-3 w-full max-w-xs">
-          <button
-            onClick={onLeaderboard}
-            className="flex-1 py-3 rounded-xl font-bold text-sm uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10"
-          >
+          <button onClick={onLeaderboard} className="flex-1 py-3 rounded-xl font-bold text-sm uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10">
             Leaderboard
           </button>
-          <button
-            onClick={onDailyChallenges}
-            className="flex-1 py-3 rounded-xl font-bold text-sm uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10"
-          >
+          <button onClick={onDailyChallenges} className="flex-1 py-3 rounded-xl font-bold text-sm uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10">
             Daily 🎯
+          </button>
+        </motion.div>
+
+        <motion.div variants={fadeUp} className="flex gap-3 w-full max-w-xs">
+          <button onClick={onShop} className="flex-1 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10">
+            Shop 🛍️
+          </button>
+          <button onClick={onSeason} className="flex-1 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10">
+            Season ⭐
           </button>
         </motion.div>
 
@@ -204,11 +227,11 @@ function DesktopMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings }: M
 
 // ─── Exported component ───────────────────────────────────────────────────────
 
-export function MainMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings }: MainMenuProps) {
+export function MainMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onShop, onSeason }: MainMenuProps) {
   return (
     <>
-      <MobileMenu  onPlay={onPlay} onLeaderboard={onLeaderboard} onDailyChallenges={onDailyChallenges} onSettings={onSettings} />
-      <DesktopMenu onPlay={onPlay} onLeaderboard={onLeaderboard} onDailyChallenges={onDailyChallenges} onSettings={onSettings} />
+      <MobileMenu  onPlay={onPlay} onLeaderboard={onLeaderboard} onDailyChallenges={onDailyChallenges} onSettings={onSettings} onShop={onShop} onSeason={onSeason} />
+      <DesktopMenu onPlay={onPlay} onLeaderboard={onLeaderboard} onDailyChallenges={onDailyChallenges} onSettings={onSettings} onShop={onShop} onSeason={onSeason} />
     </>
   )
 }

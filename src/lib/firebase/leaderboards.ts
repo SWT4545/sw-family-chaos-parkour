@@ -1,37 +1,38 @@
-/**
- * Firebase leaderboard stubs.
- * Returns empty arrays when Firebase env vars are missing.
- * Phase 7 will wire up real Firestore queries.
- */
+import { collection, doc, setDoc, query, orderBy, limit, getDocs, where } from 'firebase/firestore'
+import { getDb } from './firebaseConfig'
+
+const COLL = 'swfcp_leaderboard'
 
 export interface LeaderboardEntry {
-  rank:        number
   playerId:    string
   playerName:  string
   characterId: string
-  value:       number   // time, wins, or coins depending on board
+  score:       number
+  category:    'solo-time' | 'wins' | 'coins'
+  updatedAt:   number
 }
 
-function isConfigured(): boolean {
-  return !!(
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID &&
-    process.env.NEXT_PUBLIC_FIREBASE_API_KEY
-  )
-}
-
-export async function submitLeaderboardScore(
-  _board: 'solo-times' | 'most-wins' | 'most-coins',
-  _entry: Omit<LeaderboardEntry, 'rank'>,
-): Promise<void> {
-  if (!isConfigured()) return
-  // TODO Phase 7: write to Firestore leaderboard collection
+export async function submitLeaderboardScore(entry: LeaderboardEntry): Promise<void> {
+  const db = getDb()
+  if (!db) return
+  try { await setDoc(doc(db, COLL, `${entry.category}_${entry.playerId}`), entry) } catch {}
 }
 
 export async function getLeaderboard(
-  _board: 'solo-times' | 'most-wins' | 'most-coins',
-  _limit = 10,
+  category: LeaderboardEntry['category'],
+  maxEntries = 20,
 ): Promise<LeaderboardEntry[]> {
-  if (!isConfigured()) return []
-  // TODO Phase 7: query Firestore leaderboard collection
-  return []
+  const db = getDb()
+  if (!db) return []
+  try {
+    const asc = category === 'solo-time'
+    const q   = query(
+      collection(db, COLL),
+      where('category', '==', category),
+      orderBy('score', asc ? 'asc' : 'desc'),
+      limit(maxEntries),
+    )
+    const snap = await getDocs(q)
+    return snap.docs.map(d => d.data() as LeaderboardEntry)
+  } catch { return [] }
 }

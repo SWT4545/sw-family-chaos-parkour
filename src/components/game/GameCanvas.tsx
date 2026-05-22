@@ -18,6 +18,7 @@ import {
 } from '@/lib/game/events/tacoRain'
 import type { TacoEntity } from '@/lib/game/events/tacoRain'
 import { getAudioSettings } from '@/lib/game/audio/AudioSettings'
+import type { PlayerSyncState } from '@/lib/firebase/gameSync'
 
 // ── Canvas / physics constants ──────────────────────────────────
 const CANVAS_W  = 960
@@ -101,19 +102,32 @@ const SFX = {
 }
 
 // ── Props ────────────────────────────────────────────────────────
+export interface RemoteGhost {
+  playerId:  string
+  character: Character
+  name:      string
+  state:     { x: number; y: number; facing: number }
+}
+
 interface Props {
   player1:        Character
   player2:        Character | null
   matchStartTime: number
-  mode:           'solo' | '1v1'
+  mode:           'solo' | '1v1' | 'online'
   onVictory:      (winner: 1 | 2, time: number, coins: { p1: number; p2: number }) => void
   chaosRef:       MutableRefObject<ChaosState>
+  remoteGhosts?:  RemoteGhost[]
+  onTickSync?:    (state: PlayerSyncState) => void
 }
 
-export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, chaosRef }: Props) {
-  const canvasRef    = useRef<HTMLCanvasElement>(null)
-  const onVictoryRef = useRef(onVictory)
-  useEffect(() => { onVictoryRef.current = onVictory }, [onVictory])
+export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, chaosRef, remoteGhosts, onTickSync }: Props) {
+  const canvasRef       = useRef<HTMLCanvasElement>(null)
+  const onVictoryRef    = useRef(onVictory)
+  const remoteGhostsRef = useRef<RemoteGhost[]>(remoteGhosts ?? [])
+  const onTickSyncRef   = useRef(onTickSync)
+  useEffect(() => { onVictoryRef.current  = onVictory },        [onVictory])
+  useEffect(() => { remoteGhostsRef.current = remoteGhosts ?? [] }, [remoteGhosts])
+  useEffect(() => { onTickSyncRef.current = onTickSync },       [onTickSync])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -947,6 +961,10 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       }
     }
 
+    // ── Online sync helpers ────────────────────────────────────────
+    const remoteImgCache = new Map<string, HTMLImageElement>()
+    let syncTickCounter  = 0
+
     // ── Main loop ──────────────────────────────────────────────────
     let rafId = 0
 
@@ -1056,6 +1074,32 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       drawCoins(nowMs)
       // Tacos (world-space)
       for (const taco of tacos) drawTaco(ctx, taco)
+      // Remote ghost players (online mode)
+      for (const ghost of remoteGhostsRef.current) {
+        const gx = ghost.state.x; const gy = ghost.state.y
+        // Load image lazily
+        if (!remoteImgCache.has(ghost.character.id)) {
+          const gi = new Image(); gi.src = ghost.character.assets.full
+          remoteImgCache.set(ghost.character.id, gi)
+        }
+        const gi = remoteImgCache.get(ghost.character.id)!
+        ctx.save(); ctx.globalAlpha = 0.55
+        ctx.beginPath(); ctx.rect(gx - PLAYER_W / 2, gy - PLAYER_H / 2, PLAYER_W, PLAYER_H); ctx.clip()
+        if (gi.complete && gi.naturalWidth > 0) {
+          applyCanvasAlignment(ctx, gx, gy, PLAYER_W, PLAYER_H, CHARACTER_ALIGNMENT[ghost.character.id])
+          ctx.drawImage(gi, gx - PLAYER_W / 2, gy - PLAYER_H / 2, PLAYER_W, PLAYER_H)
+        } else {
+          ctx.fillStyle = ghost.character.color
+          ctx.fillRect(gx - PLAYER_W / 2, gy - PLAYER_H / 2, PLAYER_W, PLAYER_H)
+        }
+        ctx.restore()
+        ctx.strokeStyle = ghost.character.color; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.55
+        ctx.strokeRect(gx - PLAYER_W / 2, gy - PLAYER_H / 2, PLAYER_W, PLAYER_H)
+        ctx.globalAlpha = 1
+        ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(gx - 22, gy - PLAYER_H / 2 - 18, 44, 14)
+        ctx.fillStyle = ghost.character.color; ctx.fillText(ghost.name, gx, gy - PLAYER_H / 2 - 5)
+      }
       // Players
       if (p2Body && player2) drawPlayer(p2Body, player2, p2Img, 'P2', p2TrapEffect ?? p2PowerEffect, nowMs)
       drawPlayer(p1Body, player1, p1Img, 'P1', p1TrapEffect ?? p1PowerEffect, nowMs)
@@ -1066,10 +1110,21 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       // Screen-space overlays (no camera offset)
       drawEffectOverlays(nowMs)
 
+      // Online sync tick — publish position every ~9 frames (≈150ms at 60fps)
+      syncTickCounter++
+      if (syncTickCounter % 9 === 0 && onTickSyncRef.current) {
+        onTickSyncRef.current({
+          x: p1Body.position.x, y: p1Body.position.y,
+          vx: p1Body.velocity.x, vy: p1Body.velocity.y,
+          facing: p1Body.velocity.x < -0.5 ? -1 : 1,
+          state: 'run', coins: p1Coins, checkpoint: 0, ts: Date.now(),
+        })
+      }
+
       rafId = requestAnimationFrame(loop)
     }
 
-    trackEvent('match_started', { p1: player1.id, p2: player2?.id ?? null, map: 'rooftop-test' })
+    trackEvent('match_started', { p1: player1.id, p2: player2?.id ?? null, map: 'rooftop-test', mode })
     rafId = requestAnimationFrame(loop)
 
     return () => {

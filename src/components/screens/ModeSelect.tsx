@@ -31,8 +31,7 @@ const modes = [
     label:    'Online Family Lobby',
     sub:      'Play with family anywhere',
     color:    '#8b5cf6',
-    enabled:  false,
-    badge:    'Coming Soon',
+    enabled:  true,
   },
 ]
 
@@ -91,9 +90,9 @@ export function ModeSelect({ onSelect, onBack }: Props) {
               }}
             >
               {/* Coming soon badge */}
-              {!m.enabled && 'badge' in m && (
+              {!m.enabled && (
                 <span className="absolute top-3 right-3 text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 border border-gray-700">
-                  {m.badge}
+                  {'badge' in m ? (m as { badge: string }).badge : 'Coming Soon'}
                 </span>
               )}
 
