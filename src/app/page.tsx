@@ -300,8 +300,9 @@ export default function Home() {
               {gameMode === '1v1' && (
                 <TrapHUD player1={player1} player2={player2} chaosRef={chaosRef} />
               )}
-              <TouchControls mode={gameMode === '1v1' ? '1v1' : gameMode === 'online' ? 'online' : 'solo'} />
             </div>
+            {/* Controls anchored to bottom of full screen, not the canvas box */}
+            <TouchControls mode={gameMode === '1v1' ? '1v1' : gameMode === 'online' ? 'online' : 'solo'} />
           </motion.div>
         )}
 

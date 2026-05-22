@@ -168,12 +168,13 @@ export function TouchControls({ mode = 'solo' }: TouchControlsProps) {
 
   return (
     <div
-      className="pointer-events-none absolute inset-0 flex items-end lg:hidden z-20"
+      className="pointer-events-none absolute inset-x-0 bottom-0 flex lg:hidden z-20"
       style={{
         justifyContent: showP2 ? 'space-between' : 'flex-start',
-        paddingLeft:  showP2 ? '8px' : '12px',
-        paddingRight: showP2 ? '8px' : '12px',
-        paddingBottom: 'max(14px, env(safe-area-inset-bottom))',
+        alignItems: 'flex-end',
+        paddingLeft:   showP2 ? '8px'  : '12px',
+        paddingRight:  showP2 ? '8px'  : '12px',
+        paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
       }}
     >
       <P1Cluster p={p} r={r} />

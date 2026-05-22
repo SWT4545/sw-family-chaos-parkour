@@ -310,7 +310,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
     // ── Movement helper ───────────────────────────────────────────
     function move(
       body: Matter.Body,
-      lk: string, rk: string, jks: string[],
+      lks: string[], rks: string[], jks: string[],
       grounded: boolean, jc: { val: number },
       base: typeof p1Base,
       trapFx: EffectState | null,
@@ -358,7 +358,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
         jc.val++
       }
 
-      const targetX = keys.has(lk) ? -spd : keys.has(rk) ? spd : 0
+      const targetX = lks.some(k => keys.has(k)) ? -spd : rks.some(k => keys.has(k)) ? spd : 0
       const lerp    = grounded ? accel : accel * 0.32
       Matter.Body.setVelocity(body, { x: vel.x + (targetX - vel.x) * lerp, y: body.velocity.y })
 
@@ -1031,10 +1031,14 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       if (p1PowerEffect && nowMs > p1PowerEffect.endsAt) p1PowerEffect = null
       if (p2PowerEffect && nowMs > p2PowerEffect.endsAt) p2PowerEffect = null
 
-      // Trap activation (1v1 only — solo uses pre-placed hazards)
-      if (mode === '1v1') {
-        if (keys.has('q') && !prevKeys.has('q')) activateTrap(1)
-        if (keys.has('/') && !prevKeys.has('/')) activateTrap(2)
+      // Trap activation (1v1 / online)
+      if (mode !== 'solo') {
+        // P1: Q (WASD layout) or E (arrow-key layout)
+        const p1TrapJust = (keys.has('q') && !prevKeys.has('q')) || (keys.has('e') && !prevKeys.has('e'))
+        if (p1TrapJust) activateTrap(1)
+        if (mode === '1v1') {
+          if (keys.has('/') && !prevKeys.has('/')) activateTrap(2)
+        }
       }
 
       Matter.Engine.update(engine, dt)
@@ -1089,8 +1093,12 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       const p1MaxJ = p1PowerEffect?.type === 'double_jump' ? MAX_JUMPS + 1 : MAX_JUMPS
       const p2MaxJ = p2PowerEffect?.type === 'double_jump' ? MAX_JUMPS + 1 : MAX_JUMPS
 
-      move(p1Body, 'a', 'd', ['w', ' ', 'Space', 'KeyW'], p1g, p1JC, p1Base, p1TrapEffect, p1PowerEffect, p1SJ, p1MaxJ)
-      if (p2Body) move(p2Body, 'ArrowLeft', 'ArrowRight', ['ArrowUp'], p2g, p2JC, p2Base, p2TrapEffect, p2PowerEffect, p2SJ, p2MaxJ)
+      // In 1v1 P2 owns the arrow keys — P1 uses WASD only to avoid conflicts
+      const p1lks = mode === '1v1' ? ['a']                      : ['a', 'ArrowLeft']
+      const p1rks = mode === '1v1' ? ['d']                      : ['d', 'ArrowRight']
+      const p1jks = mode === '1v1' ? ['w', ' ', 'Space', 'KeyW'] : ['w', ' ', 'Space', 'KeyW', 'ArrowUp']
+      move(p1Body, p1lks, p1rks, p1jks, p1g, p1JC, p1Base, p1TrapEffect, p1PowerEffect, p1SJ, p1MaxJ)
+      if (p2Body) move(p2Body, ['ArrowLeft'], ['ArrowRight'], ['ArrowUp'], p2g, p2JC, p2Base, p2TrapEffect, p2PowerEffect, p2SJ, p2MaxJ)
 
       p1CP = checkCPs(p1Body, p1CP, 1)
       if (p2Body) p2CP = checkCPs(p2Body, p2CP, 2)
