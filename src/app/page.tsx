@@ -275,8 +275,11 @@ export default function Home() {
 
         {/* ── Game ── */}
         {screen === 'game' && player1 && (
-          <motion.div key="game" {...slide} className="relative h-dvh bg-[#060610] flex items-center justify-center">
-            <div className="relative w-full max-w-[960px] aspect-video">
+          <motion.div key="game" {...slide} className="relative h-dvh bg-[#060610] flex items-center justify-center overflow-hidden">
+            <div
+              className="relative w-full max-w-[960px] aspect-video"
+              style={{ maxHeight: '100dvh' }}
+            >
               <GameCanvas
                 player1={player1}
                 player2={gameMode === 'solo' ? null : player2}
@@ -297,7 +300,7 @@ export default function Home() {
               {gameMode === '1v1' && (
                 <TrapHUD player1={player1} player2={player2} chaosRef={chaosRef} />
               )}
-              <TouchControls />
+              <TouchControls mode={gameMode === '1v1' ? '1v1' : gameMode === 'online' ? 'online' : 'solo'} />
             </div>
           </motion.div>
         )}

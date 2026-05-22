@@ -36,11 +36,11 @@ export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode }: Pr
   return (
     <div className="absolute inset-0 pointer-events-none flex flex-col select-none">
       {/* Top bar */}
-      <div className="flex items-start justify-between px-3 pt-2.5 gap-2">
+      <div className="flex items-start justify-between px-2 sm:px-3 pt-2 gap-1.5 sm:gap-2">
 
         {/* P1 chip */}
         <div
-          className="flex items-center gap-2 rounded-xl pl-1 pr-3 py-1.5 bg-black/75 backdrop-blur-sm border"
+          className="flex items-center gap-1.5 sm:gap-2 rounded-xl pl-1 pr-2 sm:pr-3 py-1.5 bg-black/80 backdrop-blur-sm border flex-shrink"
           style={{ borderColor: `${player1.color}40` }}
         >
           <div
@@ -54,12 +54,15 @@ export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode }: Pr
               sizes="28px"
             />
           </div>
-          <div>
-            <p className="text-[8px] uppercase tracking-widest font-bold text-yellow-500">
-              {mode === 'solo' ? 'SOLO · WASD/Space' : 'P1 · WASD/Space'}
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-wider font-bold text-yellow-500 hidden sm:block">
+              {mode === 'solo' ? 'SOLO · WASD' : 'P1 · WASD'}
             </p>
-            <p className="text-white font-black text-xs uppercase leading-tight">{player1.name}</p>
-            <p className="text-[9px] font-bold" style={{ color: player1.color }}>
+            <p className="text-[10px] uppercase tracking-wider font-bold text-yellow-500 sm:hidden">
+              {mode === 'solo' ? 'SOLO' : 'P1'}
+            </p>
+            <p className="text-white font-black text-xs uppercase leading-tight truncate">{player1.name}</p>
+            <p className="text-[10px] font-bold tabular-nums" style={{ color: player1.color }}>
               💰 {coins.p1}
             </p>
           </div>
@@ -67,34 +70,32 @@ export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode }: Pr
 
         {/* Timer */}
         <div
-          className="rounded-xl px-4 py-1.5 bg-black/80 backdrop-blur-sm border text-center transition-colors"
+          className="rounded-xl px-3 sm:px-4 py-1.5 bg-black/85 backdrop-blur-sm border text-center transition-colors flex-shrink-0"
           style={{ borderColor: urgent ? '#ef444440' : 'rgba(255,255,255,0.1)' }}
         >
-          <p className="text-[8px] uppercase tracking-widest font-bold text-gray-500">Time Left</p>
+          <p className="text-[10px] uppercase tracking-widest font-bold text-gray-500">Time</p>
           <p
-            className="font-black text-xl tabular-nums leading-none transition-colors"
+            className="font-black text-xl sm:text-2xl tabular-nums leading-none transition-colors"
             style={{ color: urgent ? '#ef4444' : '#ffffff' }}
           >
             {timeStr}
           </p>
-          {mode === 'solo' && (
-            <p className="text-[7px] uppercase tracking-widest text-gray-600 mt-0.5">Solo Run</p>
-          )}
         </div>
 
         {/* P2 chip (1v1 only) */}
         {mode === '1v1' && (
           <div
-            className="flex items-center gap-2 rounded-xl pr-1 pl-3 py-1.5 bg-black/75 backdrop-blur-sm border text-right"
+            className="flex items-center gap-1.5 sm:gap-2 rounded-xl pr-1 pl-2 sm:pl-3 py-1.5 bg-black/80 backdrop-blur-sm border text-right flex-shrink"
             style={{ borderColor: `${player2?.color ?? '#3b82f6'}40` }}
           >
-            <div>
-              <p className="text-[8px] uppercase tracking-widest font-bold text-blue-400">P2 · Arrows</p>
-              <p className="text-white font-black text-xs uppercase leading-tight">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-wider font-bold text-blue-400 hidden sm:block">P2 · Arrows</p>
+              <p className="text-[10px] uppercase tracking-wider font-bold text-blue-400 sm:hidden">P2</p>
+              <p className="text-white font-black text-xs uppercase leading-tight truncate">
                 {player2?.name ?? 'Open'}
               </p>
               {player2 && (
-                <p className="text-[9px] font-bold text-right" style={{ color: player2.color }}>
+                <p className="text-[10px] font-bold text-right tabular-nums" style={{ color: player2.color }}>
                   💰 {coins.p2}
                 </p>
               )}
@@ -115,15 +116,15 @@ export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode }: Pr
           </div>
         )}
 
-        {/* Solo mode — spacer to keep timer centered */}
-        {mode === 'solo' && <div className="w-24" />}
+        {/* Solo spacer */}
+        {mode === 'solo' && <div className="w-16 sm:w-24 flex-shrink-0" />}
 
       </div>
 
       <div className="flex-1" />
 
-      {/* Bottom hint */}
-      <div className="flex justify-center pb-2">
+      {/* Bottom hint — desktop only */}
+      <div className="hidden sm:flex justify-center pb-2">
         <div className="rounded-lg px-3 py-1 bg-black/50 backdrop-blur-sm border border-white/5">
           <p className="text-[9px] text-gray-600 uppercase tracking-widest">
             {mode === 'solo'
