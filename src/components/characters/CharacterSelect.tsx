@@ -18,20 +18,17 @@ export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: Characte
   return (
     <div
       className="relative h-dvh bg-[#080808] flex flex-col overflow-hidden"
-      style={{
-        paddingTop:    'env(safe-area-inset-top)',
-        paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
-      }}
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       {/* Blurred poster bg */}
       <div
         className="absolute inset-0 opacity-[0.08]"
         style={{
-          backgroundImage:   'url(/family-chaos-poster.png)',
-          backgroundSize:    'cover',
-          backgroundPosition:'center',
-          filter:            'blur(16px)',
-          transform:         'scale(1.05)',
+          backgroundImage:    'url(/family-chaos-poster.png)',
+          backgroundSize:     'cover',
+          backgroundPosition: 'center',
+          filter:             'blur(16px)',
+          transform:          'scale(1.05)',
         }}
       />
 
@@ -57,7 +54,7 @@ export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: Characte
 
         <div className="text-center">
           <p className="text-[10px] uppercase tracking-[0.35em] text-yellow-500 font-bold leading-none">
-            {playerNumber === 2 ? 'Player 2 — S&W Family Chaos Parkour' : 'S&W Family Chaos Parkour'}
+            {playerNumber === 2 ? 'Player 2' : 'S&W Family Chaos Parkour'}
           </p>
           <h1 className="text-base sm:text-2xl font-black uppercase tracking-widest text-white leading-tight mt-0.5">
             {playerNumber === 2 ? 'Player 2 — Choose' : 'Choose Your Champion'}
@@ -70,15 +67,17 @@ export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: Characte
       {/* ── Scrollable body ─────────────────────────────────────────── */}
       <div className="relative z-10 flex-1 overflow-y-auto overscroll-contain">
         <div
-          className="flex flex-col items-center px-4 pt-3 pb-8 gap-6
-                     sm:justify-center sm:min-h-full"
+          className="flex flex-col items-center px-4 pt-3 gap-0 sm:justify-center sm:min-h-full"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 120px)' }}
         >
-          {/* Character cards
-              Mobile:  2-column grid — wrapper div owns the aspect ratio,
-                       card fills it with sizeClassName="w-full h-full"
-              Desktop: flex row — wrapper div has explicit fixed dimensions,
-                       card fills those via sizeClassName="w-full h-full" too */}
-          <div className="grid grid-cols-2 sm:flex gap-4 sm:flex-wrap sm:justify-center w-full sm:w-auto">
+
+          {/* Character card grid
+              Mobile:  2-column, aspect-[2/3] wrappers, gap 18px, pb 140px
+              Desktop: flex row, fixed dimensions */}
+          <div
+            className="grid grid-cols-2 sm:flex sm:flex-wrap sm:justify-center w-full sm:w-auto"
+            style={{ gap: '18px', paddingBottom: '28px' }}
+          >
             {CHARACTERS.map((char) => (
               <div
                 key={char.id}
@@ -90,12 +89,13 @@ export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: Characte
                   onSelect={() => setFocused(char)}
                   size="lg"
                   sizeClassName="w-full h-full"
+                  showTextOverlay={false}
                 />
               </div>
             ))}
           </div>
 
-          {/* Detail panel */}
+          {/* Detail panel — sits fully below the grid */}
           <AnimatePresence mode="wait">
             <motion.div
               key={focused.id}
@@ -158,7 +158,7 @@ export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: Characte
                 {/* Select CTA */}
                 <motion.button
                   onClick={() => onSelect(focused)}
-                  className="w-full py-3.5 rounded-xl font-black text-sm sm:text-base uppercase tracking-widest text-black"
+                  className="w-full py-4 rounded-xl font-black text-sm sm:text-base uppercase tracking-widest text-black"
                   style={{ backgroundColor: '#eab308' }}
                   whileHover={{ scale: 1.02, backgroundColor: '#fbbf24' }}
                   whileTap={{ scale: 0.97 }}
@@ -168,6 +168,7 @@ export function CharacterSelect({ playerNumber = 1, onSelect, onBack }: Characte
               </div>
             </motion.div>
           </AnimatePresence>
+
         </div>
       </div>
     </div>

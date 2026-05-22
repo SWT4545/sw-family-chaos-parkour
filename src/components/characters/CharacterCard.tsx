@@ -12,6 +12,12 @@ interface CharacterCardProps {
   size?: 'sm' | 'md' | 'lg'
   /** Replaces the built-in size classes — use when a parent controls dimensions */
   sizeClassName?: string
+  /**
+   * Render role/name text over the card image.
+   * Default: false — production card PNGs have text baked into the artwork.
+   * Set true only for placeholder or non-production assets.
+   */
+  showTextOverlay?: boolean
 }
 
 const sizes = {
@@ -20,10 +26,18 @@ const sizes = {
   lg: 'w-36 h-52 sm:w-44 sm:h-60 md:w-48 md:h-64',
 }
 
-export function CharacterCard({ character, selected, onSelect, size = 'md', sizeClassName }: CharacterCardProps) {
+export function CharacterCard({
+  character,
+  selected,
+  onSelect,
+  size = 'md',
+  sizeClassName,
+  showTextOverlay = false,
+}: CharacterCardProps) {
   return (
     <motion.button
       onClick={onSelect}
+      aria-label={`Select ${character.name}`}
       className={cn(
         'relative overflow-hidden rounded-xl border-2 cursor-pointer focus:outline-none flex-shrink-0',
         sizeClassName ?? sizes[size],
@@ -38,19 +52,16 @@ export function CharacterCard({ character, selected, onSelect, size = 'md', size
       whileTap={{ scale: 0.97 }}
       transition={{ type: 'spring', stiffness: 380, damping: 24 }}
     >
-      {/* Character card art — aligned via registry */}
+      {/* Character card art */}
       <CharacterImage
         src={character.assets.card}
         alt={character.name}
         {...CHARACTER_ALIGNMENT[character.id]}
-        sizes="(max-width: 640px) 144px, 192px"
+        sizes="(max-width: 640px) 160px, 220px"
         priority={selected}
       />
 
-      {/* Bottom gradient */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/10 to-transparent" />
-
-      {/* Inner glow on selected */}
+      {/* Inner selected glow */}
       {selected && (
         <div
           className="absolute inset-0 rounded-xl pointer-events-none"
@@ -58,23 +69,28 @@ export function CharacterCard({ character, selected, onSelect, size = 'md', size
         />
       )}
 
-      {/* Character name plate */}
-      <div className="absolute bottom-0 inset-x-0 px-3 pb-3">
-        <p
-          className="text-[10px] font-bold uppercase tracking-widest leading-none mb-0.5"
-          style={{ color: character.color }}
-        >
-          {character.role}
-        </p>
-        <h3 className="font-black text-white text-sm uppercase leading-tight">
-          {character.name}
-        </h3>
-      </div>
+      {/* Text overlay — only for non-production / placeholder assets */}
+      {showTextOverlay && (
+        <>
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/10 to-transparent" />
+          <div className="absolute bottom-0 inset-x-0 px-3 pb-3">
+            <p
+              className="text-[10px] font-bold uppercase tracking-widest leading-none mb-0.5"
+              style={{ color: character.color }}
+            >
+              {character.role}
+            </p>
+            <h3 className="font-black text-white text-sm uppercase leading-tight">
+              {character.name}
+            </h3>
+          </div>
+        </>
+      )}
 
-      {/* Selected badge */}
+      {/* Selected checkmark */}
       {selected && (
-        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center">
-          <span className="text-black text-[10px] font-black">✓</span>
+        <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-yellow-400 flex items-center justify-center shadow-lg">
+          <span className="text-black text-xs font-black">✓</span>
         </div>
       )}
     </motion.button>
