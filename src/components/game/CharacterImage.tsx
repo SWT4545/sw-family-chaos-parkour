@@ -69,6 +69,7 @@ export function CharacterImage({
           src={src}
           alt={alt}
           fill
+          quality={95}
           className="object-contain"
           priority={priority}
           sizes={sizes ?? '(max-width: 640px) 160px, 240px'}

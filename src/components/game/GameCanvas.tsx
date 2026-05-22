@@ -143,6 +143,14 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
     if (!canvas) return
     const ctx = canvas.getContext('2d')!
 
+    // ── DPR-aware buffer — crisp on retina displays ───────────────
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    canvas.width  = CANVAS_W * dpr
+    canvas.height = CANVAS_H * dpr
+    ctx.scale(dpr, dpr)
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
+
     // ── Character images (shared cache — load once, no re-decode) ─
     loadCharacterImage(player1.id)
     if (player2) loadCharacterImage(player2.id)

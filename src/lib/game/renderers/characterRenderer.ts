@@ -135,15 +135,20 @@ export function drawCharacter(ctx: CanvasRenderingContext2D, s: CharDrawState): 
   }
 
   // ── Name tag ─────────────────────────────────────────────────
-  const nameY = footY - size.h + bounce - 6
+  const nameY = footY - size.h + bounce - 8
   ctx.save()
-  ctx.font = 'bold 9px sans-serif'
+  ctx.font = 'bold 11px sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'bottom'
-  const tw = ctx.measureText(s.name).width + 10
-  ctx.fillStyle = 'rgba(0,0,0,0.72)'
-  ctx.fillRect(s.x - tw / 2, nameY - 14, tw, 13)
-  ctx.fillStyle = s.color
+  const tw = ctx.measureText(s.name).width + 14
+  // Drop shadow for crispness
+  ctx.shadowColor = 'rgba(0,0,0,0.8)'
+  ctx.shadowBlur  = 4
+  ctx.fillStyle   = 'rgba(0,0,0,0.82)'
+  ctx.roundRect?.(s.x - tw / 2, nameY - 16, tw, 15, 4)
+  ctx.fill()
+  ctx.shadowBlur  = 0
+  ctx.fillStyle   = s.color
   ctx.fillText(s.name, s.x, nameY)
   ctx.restore()
 }

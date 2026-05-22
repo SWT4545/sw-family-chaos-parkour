@@ -57,6 +57,7 @@ function MobileMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onSh
           src="/family-chaos-poster.png"
           alt="S&W Family Chaos Parkour"
           fill
+          quality={95}
           className="object-contain"
           priority
         />
@@ -152,6 +153,7 @@ function DesktopMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onS
           src="/family-chaos-poster.png"
           alt="S&W Family Chaos Parkour"
           fill
+          quality={95}
           className="object-contain object-center"
           priority
         />
