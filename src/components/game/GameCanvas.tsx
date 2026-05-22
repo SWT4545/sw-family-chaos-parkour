@@ -1144,17 +1144,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       const atFinish = (b: Matter.Body) =>
         Math.abs(b.position.x - activeMap.finishX) < 75 && b.position.y < activeMap.finishY + 90
 
-      // In online mode: check if any remote player has already crossed the finish
-      if (mode === 'online') {
-        for (const ghost of remoteGhostsRef.current) {
-          if (ghost.state.finished) {
-            gameOver = true; SFX.victory()
-            trackEvent('match_finished', { winner: 2, reason: 'remote_finish', time: elapsed })
-            onVictoryRef.current(2, elapsed, { p1: p1Coins, p2: 0 }); return
-          }
-        }
-      }
-
+      // Local P1 finish always takes priority (prevents stale remote-finished flag from stealing win)
       if (atFinish(p1Body)) {
         // In online mode, immediately broadcast finish so remote players know we won
         if (mode === 'online' && onFinishSyncRef.current) {
@@ -1172,6 +1162,16 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
         gameOver = true; SFX.victory()
         trackEvent('match_finished', { winner: 2, reason: 'finish', time: elapsed })
         onVictoryRef.current(2, elapsed, { p1: p1Coins, p2: p2Coins }); return
+      }
+      // Remote ghost finish check — only after local player checks, prevents stale flag from stealing win
+      if (mode === 'online') {
+        for (const ghost of remoteGhostsRef.current) {
+          if (ghost?.state?.finished) {
+            gameOver = true; SFX.victory()
+            trackEvent('match_finished', { winner: 2, reason: 'remote_finish', time: elapsed })
+            onVictoryRef.current(2, elapsed, { p1: p1Coins, p2: 0 }); return
+          }
+        }
       }
 
       // Camera — solo follows P1; 1v1 follows the leader
@@ -1208,10 +1208,10 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       for (const taco of tacos) drawTaco(ctx, taco)
       // Remote ghost players (online mode)
       for (const ghost of remoteGhostsRef.current) {
-        if (!ghost?.character) continue
+        if (!ghost?.character || !ghost.state) continue
         loadCharacterImage(ghost.character.id)
-        drawGhost(ctx, ghost.character.id, ghost.character.color ?? '#888', ghost.name,
-          ghost.state.x, ghost.state.y, ghost.state.facing)
+        drawGhost(ctx, ghost.character.id, ghost.character.color ?? '#888', ghost.name ?? '?',
+          ghost.state.x ?? 0, ghost.state.y ?? 0, ghost.state.facing ?? 1)
       }
       // Players — PNG renderer with animation
       if (p2Body && player2) {

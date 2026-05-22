@@ -98,31 +98,31 @@ export function subscribeToRoom(
 export async function setPlayerReady(code: string, playerId: string, ready: boolean): Promise<void> {
   const db = getDb()
   if (!db) return
-  await updateDoc(doc(db, COLL, code, 'players', playerId), { ready })
+  await withTimeout(updateDoc(doc(db, COLL, code, 'players', playerId), { ready }))
 }
 
 export async function setRoomStatus(code: string, status: RoomStatus): Promise<void> {
   const db = getDb()
   if (!db) return
-  await updateDoc(doc(db, COLL, code), { status })
+  await withTimeout(updateDoc(doc(db, COLL, code), { status }))
 }
 
 export async function setRoomMap(code: string, mapId: string): Promise<void> {
   const db = getDb()
   if (!db) return
-  await updateDoc(doc(db, COLL, code), { mapId })
+  await withTimeout(updateDoc(doc(db, COLL, code), { mapId }))
 }
 
 export async function kickPlayer(code: string, playerId: string): Promise<void> {
   const db = getDb()
   if (!db) return
-  await deleteDoc(doc(db, COLL, code, 'players', playerId))
+  await withTimeout(deleteDoc(doc(db, COLL, code, 'players', playerId)))
 }
 
 export async function leaveRoom(code: string, playerId: string): Promise<void> {
   const db = getDb()
   if (!db) return
-  await deleteDoc(doc(db, COLL, code, 'players', playerId))
+  await withTimeout(deleteDoc(doc(db, COLL, code, 'players', playerId)))
 }
 
 export async function updatePlayerCharacter(
@@ -130,5 +130,5 @@ export async function updatePlayerCharacter(
 ): Promise<void> {
   const db = getDb()
   if (!db) return
-  await updateDoc(doc(db, COLL, code, 'players', playerId), { characterId, ready: false })
+  await withTimeout(updateDoc(doc(db, COLL, code, 'players', playerId), { characterId, ready: false }))
 }

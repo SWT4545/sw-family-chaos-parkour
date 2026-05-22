@@ -1,16 +1,9 @@
 'use client'
-import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Map, Users, Zap } from 'lucide-react'
+import { ChevronLeft, Map, Users, Zap } from 'lucide-react'
 import { Character } from '@/types/player'
 import { CharacterImage } from '@/components/game/CharacterImage'
 import { CHARACTER_ALIGNMENT } from '@/lib/game/assets/AssetRegistry'
-
-const MAPS = [
-  { id: 'rooftop', name: 'Rooftop Mayhem', desc: 'Urban skyline chaos' },
-  { id: 'warehouse', name: 'Warehouse Wipeout', desc: 'Industrial obstacle course' },
-  { id: 'park', name: 'Park Pandemonium', desc: 'Suburban trap gauntlet' },
-]
 
 interface FamilyLobbyProps {
   player1:    Character
@@ -55,9 +48,6 @@ function CharacterPortrait({ character }: { character: Character }) {
 }
 
 export function FamilyLobby({ player1, player2, mode = '1v1', levelName, onStartMatch, onSelectP2, onBack }: FamilyLobbyProps) {
-  const [mapIndex, setMapIndex] = useState(0)
-  const map = MAPS[mapIndex]
-
   return (
     <div className="relative h-dvh bg-[#080808] flex flex-col overflow-hidden">
       {/* Background */}
@@ -169,48 +159,19 @@ export function FamilyLobby({ player1, player2, mode = '1v1', levelName, onStart
           ) : null}
         </div>
 
-        {/* Map picker */}
-        <div
-          className="w-full max-w-2xl rounded-2xl p-4 sm:p-5 backdrop-blur-sm border border-white/[0.06]"
-          style={{ backgroundColor: 'rgba(10,10,10,0.85)' }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
+        {/* Selected level */}
+        {levelName && (
+          <div
+            className="w-full max-w-2xl rounded-2xl p-4 sm:p-5 backdrop-blur-sm border border-yellow-500/20"
+            style={{ backgroundColor: 'rgba(10,10,10,0.85)' }}
+          >
+            <div className="flex items-center gap-2 mb-1">
               <Map size={14} className="text-yellow-500" />
-              <p className="text-[10px] uppercase tracking-widest text-yellow-500 font-bold">
-                Map Selection
-              </p>
+              <p className="text-[10px] uppercase tracking-widest text-yellow-500 font-bold">Selected Level</p>
             </div>
-            <p className="text-[10px] uppercase tracking-widest text-gray-600 font-bold">
-              Match Duration&nbsp;·&nbsp;<span className="text-gray-400">8:00</span>
-            </p>
+            <h3 className="font-black text-white text-xl sm:text-2xl uppercase tracking-wide">{levelName}</h3>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setMapIndex((i) => (i - 1 + MAPS.length) % MAPS.length)}
-              className="w-9 h-9 rounded-full bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center transition-colors flex-shrink-0"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <div className="flex-1 text-center">
-              <motion.div
-                key={map.id}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.15 }}
-              >
-                <h3 className="font-black text-white text-lg sm:text-xl uppercase">{map.name}</h3>
-                <p className="text-gray-500 text-xs sm:text-sm">{map.desc}</p>
-              </motion.div>
-            </div>
-            <button
-              onClick={() => setMapIndex((i) => (i + 1) % MAPS.length)}
-              className="w-9 h-9 rounded-full bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center transition-colors flex-shrink-0"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
+        )}
 
         {/* Start match */}
         <motion.button

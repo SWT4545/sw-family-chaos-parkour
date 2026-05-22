@@ -233,7 +233,7 @@ export default function Home() {
             <LevelSelect
               onSelect={(level) => { setSelectedLevel(level); setScreen('lobby') }}
               onBack={() => {
-                if (gameMode === '1v1') { setSelectingFor(2); setScreen('character-select') }
+                if (gameMode === '1v1') { setPlayer2(null); setSelectingFor(2); setScreen('character-select') }
                 else { setSelectingFor(1); setScreen('character-select') }
               }}
               playerNumber={selectingFor}
