@@ -5,7 +5,17 @@ import {
 import { getDb } from './firebaseConfig'
 import type { Room, RoomPlayer, RoomStatus } from '@/types/room'
 
-const COLL = 'swfcp_rooms'
+const COLL        = 'swfcp_rooms'
+const TIMEOUT_MS  = 10_000
+
+function withTimeout<T>(promise: Promise<T>, ms = TIMEOUT_MS): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Firebase request timed out')), ms)
+    ),
+  ])
+}
 
 function roomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -23,7 +33,7 @@ export async function createRoom(params: {
 
   let code = roomCode()
   for (let i = 0; i < 5; i++) {
-    const snap = await getDoc(doc(db, COLL, code))
+    const snap = await withTimeout(getDoc(doc(db, COLL, code)))
     if (!snap.exists()) break
     code = roomCode()
   }
@@ -39,8 +49,8 @@ export async function createRoom(params: {
     isHost: true, connected: true, joinedAt: Date.now(),
   }
 
-  await setDoc(doc(db, COLL, code), room)
-  await setDoc(doc(db, COLL, code, 'players', params.hostId), player)
+  await withTimeout(setDoc(doc(db, COLL, code), room))
+  await withTimeout(setDoc(doc(db, COLL, code, 'players', params.hostId), player))
   return code
 }
 
@@ -53,7 +63,7 @@ export async function joinRoom(params: {
   const db = getDb()
   if (!db) return { success: false, error: 'Firebase not configured' }
 
-  const snap = await getDoc(doc(db, COLL, params.code))
+  const snap = await withTimeout(getDoc(doc(db, COLL, params.code)))
   if (!snap.exists()) return { success: false, error: 'Room not found' }
 
   const room = snap.data() as Room
@@ -64,7 +74,7 @@ export async function joinRoom(params: {
     characterId: params.characterId, ready: false,
     isHost: false, connected: true, joinedAt: Date.now(),
   }
-  await setDoc(doc(db, COLL, params.code, 'players', params.playerId), player)
+  await withTimeout(setDoc(doc(db, COLL, params.code, 'players', params.playerId), player))
   return { success: true }
 }
 

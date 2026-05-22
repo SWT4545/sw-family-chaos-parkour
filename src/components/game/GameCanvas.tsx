@@ -115,28 +115,31 @@ export interface RemoteGhost {
   playerId:  string
   character: Character
   name:      string
-  state:     { x: number; y: number; facing: number }
+  state:     PlayerSyncState
 }
 
 interface Props {
-  player1:        Character
-  player2:        Character | null
-  matchStartTime: number
-  mode:           'solo' | '1v1' | 'online'
-  onVictory:      (winner: 1 | 2, time: number, coins: { p1: number; p2: number }) => void
-  chaosRef:       MutableRefObject<ChaosState>
-  remoteGhosts?:  RemoteGhost[]
-  onTickSync?:    (state: PlayerSyncState) => void
+  player1:         Character
+  player2:         Character | null
+  matchStartTime:  number
+  mode:            'solo' | '1v1' | 'online'
+  onVictory:       (winner: 1 | 2, time: number, coins: { p1: number; p2: number }) => void
+  chaosRef:        MutableRefObject<ChaosState>
+  remoteGhosts?:   RemoteGhost[]
+  onTickSync?:     (state: PlayerSyncState) => void
+  onFinishSync?:   (state: PlayerSyncState) => void  // immediate publish on finish
 }
 
-export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, chaosRef, remoteGhosts, onTickSync }: Props) {
-  const canvasRef       = useRef<HTMLCanvasElement>(null)
-  const onVictoryRef    = useRef(onVictory)
-  const remoteGhostsRef = useRef<RemoteGhost[]>(remoteGhosts ?? [])
-  const onTickSyncRef   = useRef(onTickSync)
-  useEffect(() => { onVictoryRef.current  = onVictory },        [onVictory])
+export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, chaosRef, remoteGhosts, onTickSync, onFinishSync }: Props) {
+  const canvasRef        = useRef<HTMLCanvasElement>(null)
+  const onVictoryRef     = useRef(onVictory)
+  const remoteGhostsRef  = useRef<RemoteGhost[]>(remoteGhosts ?? [])
+  const onTickSyncRef    = useRef(onTickSync)
+  const onFinishSyncRef  = useRef(onFinishSync)
+  useEffect(() => { onVictoryRef.current    = onVictory },       [onVictory])
   useEffect(() => { remoteGhostsRef.current = remoteGhosts ?? [] }, [remoteGhosts])
-  useEffect(() => { onTickSyncRef.current = onTickSync },       [onTickSync])
+  useEffect(() => { onTickSyncRef.current   = onTickSync },      [onTickSync])
+  useEffect(() => { onFinishSyncRef.current = onFinishSync },    [onFinishSync])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -1024,8 +1027,14 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       // Timer
       const elapsed = (nowMs - matchStartTime) / 1000
       if (elapsed >= MATCH_SECS) {
-        const winner: 1 | 2 = mode === 'solo' ? 1
-          : (!p2Body || p1Body.position.x >= p2Body.position.x ? 1 : 2)
+        let winner: 1 | 2 = 1
+        if (mode === '1v1') {
+          winner = (!p2Body || p1Body.position.x >= p2Body.position.x) ? 1 : 2
+        } else if (mode === 'online') {
+          // Compare local player X against furthest remote ghost
+          const bestGhostX = remoteGhostsRef.current.reduce((max, g) => Math.max(max, g.state.x), -Infinity)
+          winner = p1Body.position.x >= bestGhostX ? 1 : 2
+        }
         gameOver = true
         SFX.victory()
         trackEvent('match_finished', { winner, reason: 'timer', time: elapsed })
@@ -1129,7 +1138,26 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       const atFinish = (b: Matter.Body) =>
         Math.abs(b.position.x - ROOFTOP_TEST.finishX) < 75 && b.position.y < ROOFTOP_TEST.finishY + 90
 
+      // In online mode: check if any remote player has already crossed the finish
+      if (mode === 'online') {
+        for (const ghost of remoteGhostsRef.current) {
+          if (ghost.state.finished) {
+            gameOver = true; SFX.victory()
+            trackEvent('match_finished', { winner: 2, reason: 'remote_finish', time: elapsed })
+            onVictoryRef.current(2, elapsed, { p1: p1Coins, p2: 0 }); return
+          }
+        }
+      }
+
       if (atFinish(p1Body)) {
+        // In online mode, immediately broadcast finish so remote players know we won
+        if (mode === 'online' && onFinishSyncRef.current) {
+          onFinishSyncRef.current({
+            x: p1Body.position.x, y: p1Body.position.y,
+            vx: 0, vy: 0, facing: p1Facing === 'right' ? 1 : -1,
+            state: 'finished', finished: true, coins: p1Coins, checkpoint: 0, ts: Date.now(),
+          })
+        }
         gameOver = true; SFX.victory()
         trackEvent('match_finished', { winner: 1, reason: 'finish', time: elapsed })
         onVictoryRef.current(1, elapsed, { p1: p1Coins, p2: p2Coins }); return

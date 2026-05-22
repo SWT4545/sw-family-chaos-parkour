@@ -61,5 +61,11 @@ export function useGameSync(
     pendingStateRef.current = state
   }
 
-  return { remoteGhosts, publishState }
+  // Called immediately (e.g. on finish line crossing) — bypasses the 150ms batch
+  function publishStateNow(state: PlayerSyncState) {
+    if (roomCode && localPlayerId) publishPlayerState(roomCode, localPlayerId, state)
+    pendingStateRef.current = null  // clear pending so the next batch doesn't overwrite
+  }
+
+  return { remoteGhosts, publishState, publishStateNow }
 }

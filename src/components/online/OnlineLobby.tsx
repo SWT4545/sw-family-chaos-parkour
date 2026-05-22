@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Copy, Check, Crown, Map, UserX, Wifi } from 'lucide-react'
 import { useOnlineRoom } from '@/hooks/useOnlineRoom'
@@ -13,10 +13,11 @@ const MAPS = [
 ]
 
 interface Props {
-  roomCode:      string
-  localPlayerId: string
-  onMatchStart:  () => void
-  onLeave:       () => void
+  roomCode:        string
+  localPlayerId:   string
+  onMatchStart:    () => void
+  onLeave:         () => void
+  onPlayersChange: (players: RoomPlayer[]) => void
 }
 
 function PlayerRow({ player, isMe, isLocalHost, onKick }: {
@@ -75,11 +76,14 @@ function PlayerRow({ player, isMe, isLocalHost, onKick }: {
   )
 }
 
-export function OnlineLobby({ roomCode, localPlayerId, onMatchStart, onLeave }: Props) {
-  const { room, players, loading, me, allReady, toggleReady, startMatch, kick, changeMap } =
+export function OnlineLobby({ roomCode, localPlayerId, onMatchStart, onLeave, onPlayersChange }: Props) {
+  const { room, players, loading, me, allReady, toggleReady, startMatch, leave, kick, changeMap } =
     useOnlineRoom(roomCode, localPlayerId)
   const [copied,   setCopied]   = useState(false)
   const [mapIndex, setMapIndex] = useState(0)
+
+  // Propagate player list to parent so GameCanvas knows remote characters
+  useEffect(() => { onPlayersChange(players) }, [players, onPlayersChange])
 
   const isHost   = me?.isHost ?? false
   const mapEntry = MAPS[mapIndex]
@@ -91,8 +95,13 @@ export function OnlineLobby({ roomCode, localPlayerId, onMatchStart, onLeave }: 
   }
 
   async function handleStart() {
-    await startMatch()
+    await startMatch()   // sets skipLeave = true, then updates room status
     onMatchStart()
+  }
+
+  async function handleLeave() {
+    await leave()
+    onLeave()
   }
 
   async function handleMapChange(dir: 1 | -1) {
@@ -113,7 +122,7 @@ export function OnlineLobby({ roomCode, localPlayerId, onMatchStart, onLeave }: 
     return (
       <div className="h-dvh bg-[#080808] flex flex-col items-center justify-center gap-4">
         <p className="text-red-400 text-sm">Room not found or expired.</p>
-        <button onClick={onLeave} className="text-gray-500 hover:text-white text-xs uppercase tracking-wider">
+        <button onClick={handleLeave} className="text-gray-500 hover:text-white text-xs uppercase tracking-wider">
           ← Back
         </button>
       </div>
@@ -131,7 +140,7 @@ export function OnlineLobby({ roomCode, localPlayerId, onMatchStart, onLeave }: 
 
       {/* Header */}
       <div className="relative z-10 flex-shrink-0 flex items-center justify-between px-5 pt-5 pb-2">
-        <button onClick={onLeave} className="flex items-center gap-1.5 text-gray-500 hover:text-white transition-colors">
+        <button onClick={handleLeave} className="flex items-center gap-1.5 text-gray-500 hover:text-white transition-colors">
           <ChevronLeft size={18} />
           <span className="text-xs font-semibold uppercase tracking-wider">Leave</span>
         </button>

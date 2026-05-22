@@ -7,9 +7,10 @@ export interface PlayerSyncState {
   vx:         number
   vy:         number
   facing:     number   // 1 = right, -1 = left
-  state:      'run' | 'jump' | 'trapped' | 'idle'
+  state:      'run' | 'jump' | 'trapped' | 'idle' | 'finished'
   coins:      number
   checkpoint: number
+  finished?:  boolean  // true when player crosses finish line
   ts:         number
 }
 

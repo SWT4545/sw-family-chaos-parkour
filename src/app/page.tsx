@@ -6,7 +6,7 @@ import { MusicManager } from '@/lib/game/audio/MusicManager'
 import { LocalProfiles } from '@/lib/profiles/LocalProfiles'
 import { DailyChallenges } from '@/lib/profiles/DailyChallenges'
 import { SeasonService } from '@/lib/season/SeasonService'
-import { CHARACTERS_LIST } from '@/lib/game/characters/CharacterRegistry'
+import { CHARACTERS } from '@/lib/game/characters/characters'
 import { useGameSync } from '@/hooks/useGameSync'
 import { MainMenu } from '@/components/MainMenu'
 import { ModeSelect } from '@/components/screens/ModeSelect'
@@ -61,24 +61,25 @@ export default function Home() {
 
   // Online state
   const [roomCode,        setRoomCode]        = useState<string | null>(null)
+  const [localSessionId,  setLocalSessionId]  = useState<string | null>(null)
   const [onlinePlayers,   setOnlinePlayers]   = useState<RoomPlayer[]>([])
   const [playerName,      setPlayerName]      = useState('Player')
   const [onlineAction,    setOnlineAction]    = useState<'create' | 'join'>('create')
 
   const chaosRef = useRef<ChaosState>(defaultChaosState())
 
-  // Build character map for online ghost lookup
+  // Build character map for online ghost lookup (uses proper Character type mapping)
   const characterMap = useMemo(() => {
     const m = new Map<string, Character>()
-    CHARACTERS_LIST.forEach(c => m.set(c.id, c as unknown as Character))
+    CHARACTERS.forEach(c => m.set(c.id, c))
     return m
   }, [])
 
   // Online game sync (active only during online game)
-  const remotePlayers = onlinePlayers.filter(p => player1 && p.id !== player1.id)
-  const { remoteGhosts, publishState } = useGameSync(
+  const remotePlayers = onlinePlayers.filter(p => p.id !== localSessionId)
+  const { remoteGhosts, publishState, publishStateNow } = useGameSync(
     gameMode === 'online' && screen === 'game' ? roomCode : null,
-    player1?.id ?? null,
+    localSessionId,
     remotePlayers,
     characterMap,
   )
@@ -227,7 +228,7 @@ export default function Home() {
             <RoomCreator
               player={player1}
               playerName={playerName}
-              onCreated={(code) => { setRoomCode(code); setScreen('online-lobby') }}
+              onCreated={(code, sessionId) => { setRoomCode(code); setLocalSessionId(sessionId); setScreen('online-lobby') }}
               onBack={() => setScreen('online-gateway')}
             />
           </motion.div>
@@ -239,20 +240,21 @@ export default function Home() {
             <RoomJoiner
               player={player1}
               playerName={playerName}
-              onJoined={(code) => { setRoomCode(code); setScreen('online-lobby') }}
+              onJoined={(code, sessionId) => { setRoomCode(code); setLocalSessionId(sessionId); setScreen('online-lobby') }}
               onBack={() => setScreen('online-gateway')}
             />
           </motion.div>
         )}
 
         {/* ── Online Lobby ── */}
-        {screen === 'online-lobby' && roomCode && player1 && (
+        {screen === 'online-lobby' && roomCode && localSessionId && player1 && (
           <motion.div key="online-lobby" {...slide}>
             <OnlineLobby
               roomCode={roomCode}
-              localPlayerId={player1.id}
+              localPlayerId={localSessionId}
               onMatchStart={startNewGame}
-              onLeave={() => { setRoomCode(null); setScreen('online-gateway') }}
+              onLeave={() => { setRoomCode(null); setLocalSessionId(null); setOnlinePlayers([]); setScreen('online-gateway') }}
+              onPlayersChange={setOnlinePlayers}
             />
           </motion.div>
         )}
@@ -289,6 +291,7 @@ export default function Home() {
                 chaosRef={chaosRef}
                 remoteGhosts={gameMode === 'online' ? remoteGhosts : undefined}
                 onTickSync={gameMode === 'online' ? publishState : undefined}
+                onFinishSync={gameMode === 'online' ? publishStateNow : undefined}
               />
               <GameHUD
                 player1={player1}

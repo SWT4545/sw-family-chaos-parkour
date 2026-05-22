@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronLeft, Loader2 } from 'lucide-react'
 import { createRoom } from '@/lib/firebase/rooms'
@@ -9,13 +9,16 @@ import type { Character } from '@/types/player'
 interface Props {
   player:     Character
   playerName: string
-  onCreated:  (code: string) => void
+  onCreated:  (code: string, sessionId: string) => void
   onBack:     () => void
 }
 
 export function RoomCreator({ player, playerName, onCreated, onBack }: Props) {
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
+  const abortedRef  = useRef(false)
+  // Unique session ID — separates player identity from character choice
+  const sessionIdRef = useRef(crypto.randomUUID())
 
   async function handleCreate() {
     if (!isFirebaseConfigured()) {
@@ -24,20 +27,34 @@ export function RoomCreator({ player, playerName, onCreated, onBack }: Props) {
     }
     setLoading(true)
     setError(null)
+    abortedRef.current = false
+    const sessionId = sessionIdRef.current
     try {
       const code = await createRoom({
-        hostId:      player.id,
+        hostId:      sessionId,
         hostName:    playerName,
         characterId: player.id,
         mapId:       'rooftop',
       })
-      if (code) onCreated(code)
+      if (abortedRef.current) return
+      if (code) onCreated(code, sessionId)
       else setError('Failed to create room. Try again.')
-    } catch (e) {
-      setError('Connection error. Check your internet.')
+    } catch (e: unknown) {
+      if (abortedRef.current) return
+      const msg = e instanceof Error ? e.message : ''
+      setError(msg.includes('timed out')
+        ? 'Connection timed out. Check your internet and try again.'
+        : 'Connection error. Check your internet.')
     } finally {
-      setLoading(false)
+      if (!abortedRef.current) setLoading(false)
     }
+  }
+
+  function handleCancel() {
+    abortedRef.current = true
+    setLoading(false)
+    setError(null)
+    onBack()
   }
 
   return (
@@ -46,9 +63,9 @@ export function RoomCreator({ player, playerName, onCreated, onBack }: Props) {
       style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}
     >
       <div className="relative z-10 flex-shrink-0 flex items-center justify-between px-5 pt-5 pb-3">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-gray-500 hover:text-white transition-colors">
+        <button onClick={loading ? handleCancel : onBack} className="flex items-center gap-1.5 text-gray-500 hover:text-white transition-colors">
           <ChevronLeft size={18} />
-          <span className="text-xs font-semibold uppercase tracking-wider">Back</span>
+          <span className="text-xs font-semibold uppercase tracking-wider">{loading ? 'Cancel' : 'Back'}</span>
         </button>
         <h1 className="text-lg font-black uppercase tracking-widest text-white">Create Room</h1>
         <div className="w-16" />
@@ -61,7 +78,7 @@ export function RoomCreator({ player, playerName, onCreated, onBack }: Props) {
         >
           <p className="text-[10px] uppercase tracking-widest text-yellow-500 font-bold mb-1">Playing as</p>
           <h2 className="font-black text-white text-2xl uppercase">{playerName}</h2>
-          <p className="text-gray-500 text-xs mt-1" style={{ color: player.color }}>{player.name}</p>
+          <p className="text-xs mt-1 font-semibold" style={{ color: player.color }}>{player.name}</p>
         </div>
 
         {error && (
@@ -73,12 +90,21 @@ export function RoomCreator({ player, playerName, onCreated, onBack }: Props) {
         <motion.button
           onClick={handleCreate}
           disabled={loading}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.97 }}
-          className="w-full max-w-sm py-4 rounded-2xl font-black text-lg uppercase tracking-widest text-black bg-yellow-400 disabled:opacity-50 flex items-center justify-center gap-2"
+          whileHover={loading ? {} : { scale: 1.02 }}
+          whileTap={loading ? {} : { scale: 0.97 }}
+          className="w-full max-w-sm py-4 rounded-2xl font-black text-lg uppercase tracking-widest text-black bg-yellow-400 disabled:opacity-60 flex items-center justify-center gap-2"
         >
           {loading ? <><Loader2 size={20} className="animate-spin" /> Creating...</> : '▶ Create Room'}
         </motion.button>
+
+        {loading && (
+          <button
+            onClick={handleCancel}
+            className="text-gray-600 hover:text-gray-400 text-xs uppercase tracking-wider transition-colors"
+          >
+            Cancel
+          </button>
+        )}
       </div>
     </div>
   )

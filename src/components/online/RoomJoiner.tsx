@@ -9,7 +9,7 @@ import type { Character } from '@/types/player'
 interface Props {
   player:     Character
   playerName: string
-  onJoined:   (code: string) => void
+  onJoined:   (code: string, sessionId: string) => void
   onBack:     () => void
 }
 
@@ -17,7 +17,9 @@ export function RoomJoiner({ player, playerName, onJoined, onBack }: Props) {
   const [code,    setCode]    = useState('')
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef    = useRef<HTMLInputElement>(null)
+  const abortedRef  = useRef(false)
+  const sessionIdRef = useRef(crypto.randomUUID())
 
   async function handleJoin() {
     const trimmed = code.trim().toUpperCase()
@@ -28,20 +30,34 @@ export function RoomJoiner({ player, playerName, onJoined, onBack }: Props) {
     }
     setLoading(true)
     setError(null)
+    abortedRef.current = false
+    const sessionId = sessionIdRef.current
     try {
       const result = await joinRoom({
         code:        trimmed,
-        playerId:    player.id,
+        playerId:    sessionId,
         playerName,
         characterId: player.id,
       })
-      if (result.success) onJoined(trimmed)
+      if (abortedRef.current) return
+      if (result.success) onJoined(trimmed, sessionId)
       else setError(result.error ?? 'Could not join room')
-    } catch {
-      setError('Connection error. Check your internet.')
+    } catch (e: unknown) {
+      if (abortedRef.current) return
+      const msg = e instanceof Error ? e.message : ''
+      setError(msg.includes('timed out')
+        ? 'Connection timed out. Check your internet and try again.'
+        : 'Connection error. Check your internet.')
     } finally {
-      setLoading(false)
+      if (!abortedRef.current) setLoading(false)
     }
+  }
+
+  function handleCancel() {
+    abortedRef.current = true
+    setLoading(false)
+    setError(null)
+    onBack()
   }
 
   return (
@@ -50,9 +66,9 @@ export function RoomJoiner({ player, playerName, onJoined, onBack }: Props) {
       style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}
     >
       <div className="relative z-10 flex-shrink-0 flex items-center justify-between px-5 pt-5 pb-3">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-gray-500 hover:text-white transition-colors">
+        <button onClick={loading ? handleCancel : onBack} className="flex items-center gap-1.5 text-gray-500 hover:text-white transition-colors">
           <ChevronLeft size={18} />
-          <span className="text-xs font-semibold uppercase tracking-wider">Back</span>
+          <span className="text-xs font-semibold uppercase tracking-wider">{loading ? 'Cancel' : 'Back'}</span>
         </button>
         <h1 className="text-lg font-black uppercase tracking-widest text-white">Join Room</h1>
         <div className="w-16" />
@@ -71,6 +87,7 @@ export function RoomJoiner({ player, playerName, onJoined, onBack }: Props) {
             onKeyDown={e => e.key === 'Enter' && handleJoin()}
             placeholder="XXXXX"
             className="w-full text-center text-4xl font-black tracking-[0.5em] text-white bg-transparent border-b-2 border-gray-600 focus:border-yellow-400 focus:outline-none pb-2 transition-colors uppercase"
+            disabled={loading}
             autoFocus
             autoCapitalize="characters"
             autoCorrect="off"
@@ -86,12 +103,21 @@ export function RoomJoiner({ player, playerName, onJoined, onBack }: Props) {
         <motion.button
           onClick={handleJoin}
           disabled={loading || code.length !== 5}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.97 }}
+          whileHover={loading ? {} : { scale: 1.02 }}
+          whileTap={loading ? {} : { scale: 0.97 }}
           className="w-full max-w-sm py-4 rounded-2xl font-black text-lg uppercase tracking-widest text-black bg-yellow-400 disabled:opacity-40 flex items-center justify-center gap-2"
         >
           {loading ? <><Loader2 size={20} className="animate-spin" /> Joining...</> : '→ Join Room'}
         </motion.button>
+
+        {loading && (
+          <button
+            onClick={handleCancel}
+            className="text-gray-600 hover:text-gray-400 text-xs uppercase tracking-wider transition-colors"
+          >
+            Cancel
+          </button>
+        )}
       </div>
     </div>
   )
