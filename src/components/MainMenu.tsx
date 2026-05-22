@@ -1,7 +1,9 @@
 'use client'
 import Image from 'next/image'
-import { Settings } from 'lucide-react'
+import { Settings, LayoutGrid } from 'lucide-react'
 import { motion, type Variants } from 'framer-motion'
+
+const HUB_URL = 'https://sw-game-hub.vercel.app'
 
 interface MainMenuProps {
   onPlay:            () => void
@@ -128,13 +130,25 @@ function MobileMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onSh
         {/* Settings + copyright row */}
         <motion.div variants={fadeUp} className="flex items-center justify-between w-full max-w-xs mt-3">
           <p className="text-gray-700 text-[10px]">© S&amp;W Family Chaos Parkour</p>
-          <button
-            onClick={onSettings}
-            className="text-gray-600 hover:text-white transition-colors p-1.5"
-            aria-label="Settings"
-          >
-            <Settings size={16} />
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href={HUB_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-yellow-600 hover:text-yellow-400 transition-colors text-[10px] font-bold uppercase tracking-wider"
+              aria-label="Game Hub"
+            >
+              <LayoutGrid size={12} />
+              Hub
+            </a>
+            <button
+              onClick={onSettings}
+              className="text-gray-600 hover:text-white transition-colors p-1.5"
+              aria-label="Settings"
+            >
+              <Settings size={16} />
+            </button>
+          </div>
         </motion.div>
       </motion.div>
     </div>
@@ -221,9 +235,21 @@ function DesktopMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onS
 
         <motion.div variants={fadeUp} className="flex items-center justify-between w-full max-w-xs pt-1">
           <p className="text-gray-700 text-[10px]">© S&amp;W Family Chaos Parkour</p>
-          <button onClick={onSettings} className="text-gray-600 hover:text-white transition-colors p-1" aria-label="Settings">
-            <Settings size={15} />
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href={HUB_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-yellow-600 hover:text-yellow-400 transition-colors text-[10px] font-bold uppercase tracking-wider"
+              aria-label="Game Hub"
+            >
+              <LayoutGrid size={11} />
+              Hub
+            </a>
+            <button onClick={onSettings} className="text-gray-600 hover:text-white transition-colors p-1" aria-label="Settings">
+              <Settings size={15} />
+            </button>
+          </div>
         </motion.div>
       </motion.div>
     </div>
