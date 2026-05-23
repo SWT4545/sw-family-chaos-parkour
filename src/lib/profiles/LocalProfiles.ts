@@ -121,6 +121,22 @@ export const LocalProfiles = {
     save(profiles)
   },
 
+  spendCoins(amount: number): boolean {
+    const profiles = load()
+    const total = profiles.reduce((s, p) => s + p.totalCoins, 0)
+    if (total < amount) return false
+    let remaining = amount
+    for (const p of profiles) {
+      const spend = Math.min(p.totalCoins, remaining)
+      p.totalCoins -= spend
+      p.lastUpdated = Date.now()
+      remaining -= spend
+      if (remaining <= 0) break
+    }
+    save(profiles)
+    return true
+  },
+
   reset(): void {
     if (typeof window !== 'undefined') localStorage.removeItem(STORAGE_KEY)
   },

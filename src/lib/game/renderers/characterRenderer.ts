@@ -23,7 +23,7 @@ const _imgCache = new Map<string, HTMLImageElement>()
 export function loadCharacterImage(characterId: string): HTMLImageElement {
   if (_imgCache.has(characterId)) return _imgCache.get(characterId)!
   const img = new Image()
-  img.src = `/game-assets/characters/${characterId}/${characterId}-full.png`
+  img.src = `/game-assets/characters-normalized/${characterId}/${characterId}-full.png`
   _imgCache.set(characterId, img)
   return img
 }
@@ -105,7 +105,10 @@ export function drawCharacter(ctx: CanvasRenderingContext2D, s: CharDrawState): 
 
   const img = getCharacterImage(s.characterId)
   if (img && img.complete && img.naturalWidth > 0) {
+    // Color glow so character pops against any background (especially dark ones)
+    ctx.filter = `drop-shadow(0 0 6px ${s.color}) drop-shadow(0 0 2px ${s.color})`
     ctx.drawImage(img, 0, 0, size.w, size.h)
+    ctx.filter = 'none'
     if (tintAlpha > 0) {
       ctx.globalAlpha = tintAlpha
       ctx.fillStyle   = tintColor

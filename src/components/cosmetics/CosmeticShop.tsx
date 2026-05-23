@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, ShoppingBag } from 'lucide-react'
 import { ALL_COSMETICS, getCosmeticsByType } from '@/lib/cosmetics/CosmeticRegistry'
 import { CosmeticInventoryManager } from '@/lib/cosmetics/CosmeticInventory'
-import { LocalProfiles } from '@/lib/profiles/LocalProfiles'
+import { LocalProfiles }             from '@/lib/profiles/LocalProfiles'
 import type { Cosmetic, CosmeticType } from '@/types/cosmetics'
 
 const TABS: { id: CosmeticType; label: string; emoji: string }[] = [
@@ -53,6 +53,7 @@ export function CosmeticShop({ open, onClose }: Props) {
   function handleBuy(cosmetic: Cosmetic) {
     const result = CosmeticInventoryManager.purchase(cosmetic.id, balance)
     if (result.success) {
+      LocalProfiles.spendCoins(cosmetic.cost)  // persist deduction to profile storage
       setFeedback({ id: cosmetic.id, msg: 'Purchased!' })
       setBalance(result.newBalance)
       refresh()
