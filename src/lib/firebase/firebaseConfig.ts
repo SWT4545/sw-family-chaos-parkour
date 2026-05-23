@@ -14,7 +14,7 @@ const rawCfg = {
 }
 
 export function isFirebaseConfigured(): boolean {
-  return !!(rawCfg.apiKey && rawCfg.projectId)
+  return !!(rawCfg.apiKey && rawCfg.projectId && rawCfg.databaseURL)
 }
 
 let _app:     FirebaseApp      | null = null

@@ -41,10 +41,10 @@ export function RoomCreator({ player, playerName, onCreated, onBack }: Props) {
       else setError('Failed to create room. Try again.')
     } catch (e: unknown) {
       if (abortedRef.current) return
-      const msg = e instanceof Error ? e.message : ''
+      const msg = e instanceof Error ? e.message : String(e)
       setError(msg.includes('timed out')
-        ? 'Connection timed out. Check your internet and try again.'
-        : 'Connection error. Check your internet.')
+        ? `Connection timed out after 10s — check that Firebase RTDB is enabled for project sw-family-chaos (${msg})`
+        : `Firebase error: ${msg}`)
     } finally {
       if (!abortedRef.current) setLoading(false)
     }

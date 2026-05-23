@@ -1,5 +1,9 @@
 {
   "rules": {
+    "swfcp_rooms": {
+      ".read": true,
+      ".write": true
+    },
     "games": {
       "$roomCode": {
         "players": {
