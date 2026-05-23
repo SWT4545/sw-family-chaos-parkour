@@ -18,10 +18,10 @@ const GAMEPLAY_ASSET_IDS = new Set(['commander', 'bj', 'brae', 'xanny'])
 // Sized so character occupies ~20-24% of the 540px canvas height.
 // w/h ratios match the foot-aligned gameplay image dimensions.
 export const CHAR_SIZES: Record<string, { w: number; h: number }> = {
-  commander: { w: 96,  h: 125 },  // 500×650 source → 0.769 ratio
-  bj:        { w: 100, h: 116 },  // 500×579 source → 0.863 ratio
-  brae:      { w: 104, h: 108 },  // 500×519 source → 0.963 ratio
-  xanny:     { w: 108, h: 101 },  // 500×469 source → 1.066 ratio
+  commander: { w: 97,  h: 125 },  // 500×642 source → 0.778 ratio
+  bj:        { w: 101, h: 115 },  // 500×568 source → 0.880 ratio
+  brae:      { w: 107, h: 108 },  // 500×503 source → 0.994 ratio
+  xanny:     { w: 111, h: 100 },  // 500×452 source → 1.106 ratio
   zaya:      { w: 80,  h: 100 },  // no gameplay asset yet
   governor:  { w: 90,  h: 115 },  // no gameplay asset yet
 }

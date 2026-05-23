@@ -89,8 +89,27 @@ export default function Home() {
   const chaosRef      = useRef<ChaosState>(defaultChaosState())
   const gameRenderRef = useRef(defaultGameRenderState())
   const [renderMode, setRenderModeState] = useState<CharacterRenderMode>('png2d')
+  const [gamePaused, setGamePaused]      = useState(false)
 
   useEffect(() => { setRenderModeState(getRenderMode()) }, [])
+
+  // Escape key toggles pause during game
+  useEffect(() => {
+    if (screen !== 'game') return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setGamePaused(p => !p) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [screen])
+
+  // Reset pause when leaving game
+  useEffect(() => { if (screen !== 'game') setGamePaused(false) }, [screen])
+
+  function exitGame() {
+    setGamePaused(false)
+    if (gameMode === 'online') { setScreen('online-lobby') }
+    else if (gameMode === '1v1') { setScreen('lobby') }
+    else { setScreen('lobby') }
+  }
 
   function toggleRenderMode() {
     const next: CharacterRenderMode = renderMode === 'png2d' ? 'threePrimitive' : 'png2d'
@@ -471,7 +490,48 @@ export default function Home() {
               {gameMode === '1v1' && (
                 <TrapHUD player1={player1} player2={player2} chaosRef={chaosRef} />
               )}
-              {/* Render mode toggle — bottom-right corner, small & unobtrusive */}
+
+              {/* ── Pause overlay ──────────────────────────────────── */}
+              {gamePaused && (
+                <div
+                  className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-auto"
+                  style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)' }}
+                >
+                  <p className="text-white font-black text-2xl uppercase tracking-widest mb-1">Paused</p>
+                  <p className="text-gray-500 text-xs mb-8">Esc to resume</p>
+                  <div className="flex flex-col gap-3 w-48">
+                    <button
+                      onClick={() => setGamePaused(false)}
+                      className="w-full py-3 rounded-xl font-black text-sm uppercase tracking-widest text-black bg-yellow-400 hover:bg-yellow-300 transition-colors"
+                    >
+                      Resume
+                    </button>
+                    <button
+                      onClick={exitGame}
+                      className="w-full py-3 rounded-xl font-black text-sm uppercase tracking-widest text-white border border-white/20 hover:bg-white/10 transition-colors"
+                    >
+                      Exit to Lobby
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Pause button (top-right of canvas, always visible) ── */}
+              <button
+                onClick={() => setGamePaused(p => !p)}
+                className="absolute top-0 right-0 z-40 pointer-events-auto flex items-center justify-center"
+                style={{
+                  width: 36, height: 36,
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.35)',
+                  paddingTop: 'env(safe-area-inset-top)',
+                }}
+                aria-label="Pause"
+              >
+                <span style={{ fontSize: 16, lineHeight: 1 }}>⏸</span>
+              </button>
+
+              {/* Render mode toggle — bottom-right corner */}
               <button
                 onClick={toggleRenderMode}
                 className="absolute bottom-1 right-1 z-50 text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded pointer-events-auto select-none"
