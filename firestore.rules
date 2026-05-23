@@ -2,47 +2,43 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Rooms ──────────────────────────────────────────────────────
+    // ── Parkour Game: Rooms ────────────────────────────────────────
     match /swfcp_rooms/{roomCode} {
       allow read: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if true;
-
+      allow write: if true;
       match /players/{playerId} {
         allow read: if true;
         allow write: if true;
       }
     }
 
-    // ── Player profiles ────────────────────────────────────────────
-    match /swfcp_players/{playerId} {
-      allow read: if true;
-      allow write: if true;
-    }
+    // ── Parkour Game: Player data ──────────────────────────────────
+    match /swfcp_players/{playerId}     { allow read, write: if true; }
+    match /swfcp_inventories/{playerId} { allow read, write: if true; }
+    match /swfcp_seasons/{docId}        { allow read, write: if true; }
+    match /swfcp_leaderboard/{entryId}  { allow read, write: if true; }
+    match /swfcp_musicRegistry/{trackId}{ allow read, write: if true; }
 
-    // ── Cosmetic inventories ───────────────────────────────────────
-    match /swfcp_inventories/{playerId} {
-      allow read: if true;
-      allow write: if true;
-    }
+    // ── Game Hub: Music pipeline ───────────────────────────────────
+    match /musicTracks/{trackId}        { allow read: if true; allow write: if true; }
+    match /gameMusicConfig/{gameId}     { allow read: if true; allow write: if true; }
 
-    // ── Season profiles ────────────────────────────────────────────
-    match /swfcp_seasons/{docId} {
-      allow read: if true;
-      allow write: if true;
-    }
+    // ── Game Hub: LaunchPad ────────────────────────────────────────
+    match /hubIdeas/{ideaId}            { allow read, write: if true; }
 
-    // ── Leaderboard ────────────────────────────────────────────────
-    match /swfcp_leaderboard/{entryId} {
-      allow read: if true;
-      allow write: if true;
-    }
+    // ── Game Hub: Profiles ─────────────────────────────────────────
+    match /hubProfiles/{profileId}      { allow read, write: if true; }
 
-    // ── Music registry ─────────────────────────────────────────────
-    match /swfcp_musicRegistry/{trackId} {
-      allow read: if true;
-      allow write: if true;
-    }
+    // ── Game Hub: Leaderboards ─────────────────────────────────────
+    match /hubLeaderboards/{entryId}    { allow read, write: if true; }
+
+    // ── Game Hub: Games registry ───────────────────────────────────
+    match /hubGames/{gameId}            { allow read, write: if true; }
+
+    // ── Game Hub: Badges ───────────────────────────────────────────
+    match /hubBadges/{badgeId}          { allow read, write: if true; }
+
+    // ── Game Hub: Learning progress ────────────────────────────────
+    match /hubLearningProgress/{userId} { allow read, write: if true; }
   }
 }

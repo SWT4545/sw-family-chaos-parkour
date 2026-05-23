@@ -1,11 +1,12 @@
 import type { CharacterId } from '@/types/player'
 
 export interface CharacterAssets {
-  card:    string
-  avatar:  string
-  full:    string
-  icon:    string
-  victory: string
+  card:        string   // UI only — never use in gameplay rendering
+  avatar:      string
+  full:        string
+  icon:        string
+  victory:     string
+  gameplayFull: string  // foot-aligned tight-crop; use in GameCanvas + renderers
 }
 
 export interface MovementStats {
@@ -27,14 +28,21 @@ export interface CharacterEntry {
   movementStats:      MovementStats
 }
 
+const GAMEPLAY_ASSET_IDS = new Set(['commander', 'bj', 'brae', 'xanny'])
+
 function assetPath(id: string) {
-  const base = `/game-assets/characters-normalized/${id}`
+  const norm     = `/game-assets/characters-normalized/${id}`
+  const gameplay = `/game-assets/characters-gameplay/${id}`
+  const hasGameplay = GAMEPLAY_ASSET_IDS.has(id)
   return {
-    card:    `${base}/${id}-card.png`,
-    avatar:  `${base}/${id}-avatar.png`,
-    full:    `${base}/${id}-full.png`,
-    icon:    `${base}/${id}-icon.png`,
-    victory: `${base}/${id}-victory.png`,
+    card:         `${norm}/${id}-card.png`,
+    avatar:       `${norm}/${id}-avatar.png`,
+    full:         `${norm}/${id}-full.png`,
+    icon:         `${norm}/${id}-icon.png`,
+    victory:      `${norm}/${id}-victory.png`,
+    gameplayFull: hasGameplay
+      ? `${gameplay}/${id}-full.png`
+      : `${norm}/${id}-full.png`,
   }
 }
 

@@ -1,12 +1,16 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    match /music/{track} {
-      allow read: if true;
-      allow write: if true;
-    }
+    // Allow reads on all files
     match /{allPaths=**} {
       allow read: if true;
+    }
+    // Allow writes on the music pipeline path
+    match /music/{gameId}/{slot}/{filename} {
+      allow write: if true;
+    }
+    // Allow writes on character assets
+    match /characters/{allPaths=**} {
       allow write: if true;
     }
   }

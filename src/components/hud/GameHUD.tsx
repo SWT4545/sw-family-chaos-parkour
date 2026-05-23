@@ -37,12 +37,12 @@ export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode }: Pr
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       {/*
-        Slim single-row HUD — no avatar image so it never covers the character
-        on small/portrait screens. Designed to fit in ≤ 32px height.
+        Header-area HUD — flush to top with only safe-area inset,
+        no extra margin so it sits in the true header zone.
       */}
       <div
-        className="flex items-center justify-between gap-1 mx-2 mt-2 rounded-xl px-2.5 py-1.5 backdrop-blur-sm"
-        style={{ background: 'rgba(0,0,0,0.72)', border: '1px solid rgba(255,255,255,0.07)' }}
+        className="flex items-center justify-between gap-1 px-3 py-1.5 backdrop-blur-sm"
+        style={{ background: 'rgba(0,0,0,0.80)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}
       >
         {/* P1 */}
         <div className="flex items-center gap-1.5 min-w-0">

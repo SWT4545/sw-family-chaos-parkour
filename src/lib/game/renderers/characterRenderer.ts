@@ -2,17 +2,30 @@
  * Character PNG renderer.
  * Visual-only layer — collision box stays at 32×50 in GameCanvas.
  * Feet of the PNG align to the bottom of the physics body.
+ *
+ * Asset path priority:
+ *   1. /game-assets/characters-gameplay/{id}/{id}-full.png  (foot-aligned, tight crop)
+ *   2. /game-assets/characters-normalized/{id}/{id}-full.png (fallback)
+ *
+ * IMPORTANT: Card assets (-card.png) must NEVER be used here.
+ * If a card path is detected, a warning is logged and the full asset is used.
  */
 
-// ── Visual sizes per character (PNG render dimensions) ───────────
+// Characters that have a gameplay-optimized asset
+const GAMEPLAY_ASSET_IDS = new Set(['commander', 'bj', 'brae', 'xanny'])
+
+// ── Visual sizes matched to actual image aspect ratios ───────────
+// Sized so character occupies ~20-24% of the 540px canvas height.
+// w/h ratios match the foot-aligned gameplay image dimensions.
 export const CHAR_SIZES: Record<string, { w: number; h: number }> = {
-  commander: { w: 90,  h: 140 },
-  bj:        { w: 88,  h: 118 },
-  brae:      { w: 85,  h: 112 },
-  xanny:     { w: 82,  h: 104 },
-  zaya:      { w: 78,  h: 100 },
+  commander: { w: 96,  h: 125 },  // 500×650 source → 0.769 ratio
+  bj:        { w: 100, h: 116 },  // 500×579 source → 0.863 ratio
+  brae:      { w: 104, h: 108 },  // 500×519 source → 0.963 ratio
+  xanny:     { w: 108, h: 101 },  // 500×469 source → 1.066 ratio
+  zaya:      { w: 80,  h: 100 },  // no gameplay asset yet
+  governor:  { w: 90,  h: 115 },  // no gameplay asset yet
 }
-const DEFAULT_SIZE = { w: 80, h: 110 }
+const DEFAULT_SIZE = { w: 88, h: 110 }
 
 // Physics box half-height — feet align to this offset from body center
 const PHYS_HALF_H = 25
@@ -22,8 +35,30 @@ const _imgCache = new Map<string, HTMLImageElement>()
 
 export function loadCharacterImage(characterId: string): HTMLImageElement {
   if (_imgCache.has(characterId)) return _imgCache.get(characterId)!
+
+  // Card asset guard — should never reach gameplay
+  if (characterId.includes('-card')) {
+    console.warn(`[CharacterRenderer] Gameplay renderer received card asset for "${characterId}". Falling back to full asset.`)
+  }
+
+  const useGameplay = GAMEPLAY_ASSET_IDS.has(characterId)
+  const src = useGameplay
+    ? `/game-assets/characters-gameplay/${characterId}/${characterId}-full.png`
+    : `/game-assets/characters-normalized/${characterId}/${characterId}-full.png`
+
   const img = new Image()
-  img.src = `/game-assets/characters-normalized/${characterId}/${characterId}-full.png`
+  img.src = src
+
+  // Fallback: if gameplay asset fails to load, try normalized
+  if (useGameplay) {
+    img.onerror = () => {
+      console.warn(`[CharacterRenderer] Gameplay asset not found for "${characterId}", falling back to normalized.`)
+      const fallback = new Image()
+      fallback.src = `/game-assets/characters-normalized/${characterId}/${characterId}-full.png`
+      _imgCache.set(characterId, fallback)
+    }
+  }
+
   _imgCache.set(characterId, img)
   return img
 }
