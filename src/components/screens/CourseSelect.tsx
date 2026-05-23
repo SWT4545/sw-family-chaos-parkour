@@ -74,7 +74,7 @@ export function CourseSelect({ onSelect, onBack, playerNumber }: Props) {
 
   return (
     <div
-      className="relative min-h-dvh bg-[#080808] flex flex-col"
+      className="relative h-dvh bg-[#080808] flex flex-col"
       style={{
         paddingTop:    'env(safe-area-inset-top)',
         paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)',
