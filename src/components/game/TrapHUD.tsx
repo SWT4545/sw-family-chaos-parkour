@@ -106,7 +106,7 @@ export function TrapHUD({ player1, player2, chaosRef }: TrapHUDProps) {
 
   return (
     <div className="absolute inset-x-0 top-0 pointer-events-none select-none z-10"
-      style={{ paddingTop: '56px' }}>
+      style={{ paddingTop: 'calc(env(safe-area-inset-top) + 62px)' }}>
       <div className="flex items-start justify-between px-2 sm:px-3 gap-2">
 
         {/* P1 panel */}

@@ -30,6 +30,9 @@ import type { PlayerSyncState } from '@/lib/firebase/gameSync'
 import { CosmeticInventoryManager } from '@/lib/cosmetics/CosmeticInventory'
 import { COSMETICS_BY_ID } from '@/lib/cosmetics/CosmeticRegistry'
 
+// ── Debug toggle — set true to show hitboxes / body markers ─────
+const DEBUG_GAME_DRAW = false
+
 // ── Canvas / physics constants ──────────────────────────────────
 const CANVAS_W   = 960
 const CANVAS_H   = 540

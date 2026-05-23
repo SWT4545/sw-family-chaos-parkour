@@ -45,9 +45,32 @@ export interface CharDrawState {
   characterId:  string
   color:        string
   name:         string
-  effectType:   string | null  // 'freeze' | 'slow' | 'slip' | null
+  effectType:   string | null
   effectEndsAt: number
   now:          number
+}
+
+// ── Rounded rect helper — avoids ctx.roundRect?. stale-path bug ──
+function fillRoundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number, r: number,
+): void {
+  ctx.beginPath()
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, w, h, r)
+  } else {
+    ctx.moveTo(x + r, y)
+    ctx.lineTo(x + w - r, y)
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+    ctx.lineTo(x + w, y + h - r)
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+    ctx.lineTo(x + r, y + h)
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+    ctx.lineTo(x, y + r)
+    ctx.quadraticCurveTo(x, y, x + r, y)
+    ctx.closePath()
+  }
+  ctx.fill()
 }
 
 // ── Main draw function ────────────────────────────────────────────
@@ -56,46 +79,64 @@ export function drawCharacter(ctx: CanvasRenderingContext2D, s: CharDrawState): 
   const footY  = s.y + PHYS_HALF_H      // bottom of physics box = foot line
   const age    = s.now - s.landSquashT   // ms since last landing
 
-  // ── Drop shadow ──────────────────────────────────────────────
+  // ── Colored ground glow — under feet only, always behind sprite ──
+  // Radial gradient ellipse at ground level so character pops on dark
+  // backgrounds without using CSS filters (which amplify the PNG border).
   ctx.save()
-  ctx.globalAlpha = 0.22
-  ctx.fillStyle   = '#000'
+  const grd = ctx.createRadialGradient(s.x, footY, 0, s.x, footY, size.w * 0.55)
+  grd.addColorStop(0, s.color)
+  grd.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.globalAlpha = 0.32
+  ctx.fillStyle   = grd
   ctx.beginPath()
-  ctx.ellipse(s.x, footY + 3, size.w * 0.28, 5, 0, 0, Math.PI * 2)
+  ctx.ellipse(s.x, footY, size.w * 0.55, 9, 0, 0, Math.PI * 2)
   ctx.fill()
   ctx.restore()
 
-  // ── Behind-character aura ────────────────────────────────────
+  // ── Dark shadow disc — subtly under feet, NOT over body ──────────
+  ctx.save()
+  ctx.globalAlpha = 0.18
+  ctx.fillStyle   = 'rgba(0,0,0,1)'
+  ctx.beginPath()
+  ctx.ellipse(s.x, footY + 2, size.w * 0.22, 4, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+
+  // ── Behind-character aura ────────────────────────────────────────
+  // IMPORTANT: drawAura ends with ctx.arc/ctx.stroke paths in context.
+  // We do NOT call ctx.fill() after this — handled inside drawAura with
+  // its own save/restore.
   drawAura(ctx, s, footY, size)
 
-  // ── Compute animation transforms ─────────────────────────────
-  const moving  = Math.abs(s.vx) > 0.5
-  const bounce  = (s.grounded && moving) ? Math.sin(s.anim * 0.25) * 3 : 0
-  const lean    = s.vx * 0.04    // radians — forward tilt while running
+  // ── Compute animation transforms ─────────────────────────────────
+  const moving = Math.abs(s.vx) > 0.5
+  const bounce = (s.grounded && moving) ? Math.sin(s.anim * 0.25) * 3 : 0
+  const lean   = s.vx * 0.04
 
   let scaleX = 1, scaleY = 1
 
   if (!s.grounded) {
-    // Jump stretch — taller + narrower proportional to upward velocity
     const stretch = Math.min(0.09, Math.abs(s.vy) * 0.004)
     scaleY = 1 + stretch
     scaleX = 1 - stretch * 0.55
   }
 
   if (s.landSquashT > 0 && age < 120) {
-    // Landing squash — recover over 120ms
     const t = 1 - age / 120
     scaleY = 1 - 0.09 * t
     scaleX = 1 + 0.07 * t
   }
 
-  // ── Effect tint ──────────────────────────────────────────────
-  const frozen = s.effectType === 'bear_trap'    && s.effectEndsAt > s.now
-  const slowed = s.effectType === 'slime_puddle' && s.effectEndsAt > s.now
+  // ── Effect tint ──────────────────────────────────────────────────
+  const frozen    = s.effectType === 'bear_trap'    && s.effectEndsAt > s.now
+  const slowed    = s.effectType === 'slime_puddle' && s.effectEndsAt > s.now
   const tintColor = frozen ? '#60a5fa' : slowed ? '#22c55e' : ''
   const tintAlpha = frozen ? 0.45      : slowed ? 0.35      : 0
 
-  // ── Draw sprite ──────────────────────────────────────────────
+  // ── Draw sprite ──────────────────────────────────────────────────
+  // No CSS drop-shadow filter — it highlights the PNG's black border
+  // on dark backgrounds, making bordered images look like black boxes.
+  // Visibility comes from the colored ground glow drawn above.
   ctx.save()
   ctx.translate(s.x, footY + bounce)
   ctx.rotate(lean)
@@ -105,26 +146,23 @@ export function drawCharacter(ctx: CanvasRenderingContext2D, s: CharDrawState): 
 
   const img = getCharacterImage(s.characterId)
   if (img && img.complete && img.naturalWidth > 0) {
-    // Color glow so character pops against any background (especially dark ones)
-    ctx.filter = `drop-shadow(0 0 6px ${s.color}) drop-shadow(0 0 2px ${s.color})`
     ctx.drawImage(img, 0, 0, size.w, size.h)
-    ctx.filter = 'none'
     if (tintAlpha > 0) {
       ctx.globalAlpha = tintAlpha
       ctx.fillStyle   = tintColor
       ctx.fillRect(0, 0, size.w, size.h)
     }
   } else {
-    // Color fallback until image loads
+    // Colored rounded-rect fallback while image loads.
+    // Uses fillRoundRect helper to avoid roundRect? stale-path bug.
     ctx.globalAlpha = 0.85
     ctx.fillStyle   = s.color
-    ctx.roundRect?.(0, 0, size.w, size.h, 8) ?? ctx.fillRect(0, 0, size.w, size.h)
-    ctx.fill()
+    fillRoundRect(ctx, 0, 0, size.w, size.h, 8)
   }
 
   ctx.restore()
 
-  // ── Freeze ice cracks ────────────────────────────────────────
+  // ── Freeze ice cracks (drawn after sprite) ───────────────────────
   if (frozen) {
     ctx.save()
     ctx.strokeStyle = '#93c5fd'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.7
@@ -137,21 +175,19 @@ export function drawCharacter(ctx: CanvasRenderingContext2D, s: CharDrawState): 
     ctx.restore()
   }
 
-  // ── Name tag ─────────────────────────────────────────────────
+  // ── Name tag — above character head ─────────────────────────────
+  // Uses fillRoundRect helper; NEVER calls ctx.fill() on a stale path.
   const nameY = footY - size.h + bounce - 8
   ctx.save()
-  ctx.font = 'bold 11px sans-serif'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'bottom'
-  const tw = ctx.measureText(s.name).width + 14
-  // Drop shadow for crispness
-  ctx.shadowColor = 'rgba(0,0,0,0.8)'
-  ctx.shadowBlur  = 4
-  ctx.fillStyle   = 'rgba(0,0,0,0.82)'
-  ctx.roundRect?.(s.x - tw / 2, nameY - 16, tw, 15, 4)
-  ctx.fill()
-  ctx.shadowBlur  = 0
-  ctx.fillStyle   = s.color
+  ctx.font          = 'bold 11px sans-serif'
+  ctx.textAlign     = 'center'
+  ctx.textBaseline  = 'bottom'
+  const tw          = ctx.measureText(s.name).width + 14
+  ctx.fillStyle     = 'rgba(0,0,0,0.78)'
+  fillRoundRect(ctx, s.x - tw / 2, nameY - 16, tw, 15, 4)
+  ctx.fillStyle     = s.color
+  ctx.shadowColor   = 'rgba(0,0,0,0.9)'
+  ctx.shadowBlur    = 3
   ctx.fillText(s.name, s.x, nameY)
   ctx.restore()
 }
@@ -198,6 +234,8 @@ export function drawGhost(
 }
 
 // ── Character-specific auras drawn behind the sprite ─────────────
+// Every branch uses save/restore and explicit beginPath so no path
+// leaks into the caller.
 function drawAura(
   ctx: CanvasRenderingContext2D,
   s: CharDrawState,
@@ -207,19 +245,18 @@ function drawAura(
   const midY = footY - size.h * 0.5
 
   if (s.characterId === 'commander') {
-    // Gold command pulse rings
+    // Gold command pulse rings (stroke only — no fill, no path leak)
     const p1 = 0.5 + 0.5 * Math.sin(s.now * 0.003)
     const p2 = 0.5 + 0.5 * Math.sin(s.now * 0.003 + 1.2)
     ctx.save()
     ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2
-    ctx.globalAlpha = 0.16 * p1
+    ctx.globalAlpha = 0.18 * p1
     ctx.beginPath(); ctx.arc(s.x, midY, 50 + p1 * 8, 0, Math.PI * 2); ctx.stroke()
-    ctx.globalAlpha = 0.10 * p2
+    ctx.globalAlpha = 0.12 * p2
     ctx.beginPath(); ctx.arc(s.x, midY, 34 + p2 * 5, 0, Math.PI * 2); ctx.stroke()
     ctx.restore()
 
   } else if (s.characterId === 'bj') {
-    // Red chaos glow
     const pulse = 0.5 + 0.5 * Math.sin(s.now * 0.005)
     ctx.save()
     ctx.globalAlpha = 0.12 * pulse
@@ -230,7 +267,6 @@ function drawAura(
     ctx.restore()
 
   } else if (s.characterId === 'brae') {
-    // Purple trick energy
     const pulse = 0.4 + 0.6 * Math.sin(s.now * 0.004 + 0.8)
     ctx.save()
     ctx.globalAlpha = 0.13 * pulse
@@ -241,7 +277,7 @@ function drawAura(
     ctx.restore()
 
   } else if (s.characterId === 'xanny') {
-    // Blue speed trail — only when running fast
+    // Speed trail — only when running fast
     const spd = Math.abs(s.vx)
     if (spd > 2) {
       const dir    = s.vx > 0 ? -1 : 1
