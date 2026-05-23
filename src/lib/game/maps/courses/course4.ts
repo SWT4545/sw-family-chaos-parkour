@@ -54,14 +54,14 @@ const JAPAN_NEON_RUN: MapDef = {
     { x: 2600, y: 240 }, { x: 2780, y: 200 }, { x: 3680, y: 210 },
   ],
   soloHazards: [
-    { x: 420,  y: 560, type: 'spike' },
-    { x: 870,  y: 480, type: 'spike' },
-    { x: 1460, y: 330, type: 'spike' },
-    { x: 1750, y: 330, type: 'spike' },
-    { x: 2300, y: 290, type: 'spike' },
-    { x: 2860, y: 250, type: 'spike' },
-    { x: 3170, y: 260, type: 'spike' },
-    { x: 3450, y: 260, type: 'spike' },
+    { x: 420,  y: 560, trapId: 'bear_trap' },
+    { x: 870,  y: 480, trapId: 'bear_trap' },
+    { x: 1460, y: 330, trapId: 'bear_trap' },
+    { x: 1750, y: 330, trapId: 'bear_trap' },
+    { x: 2300, y: 290, trapId: 'bear_trap' },
+    { x: 2860, y: 250, trapId: 'bear_trap' },
+    { x: 3170, y: 260, trapId: 'bear_trap' },
+    { x: 3450, y: 260, trapId: 'bear_trap' },
   ],
 }
 

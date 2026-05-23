@@ -53,12 +53,12 @@ const SCHOOL_DASH: MapDef = {
     { x: 3080, y: 310 }, { x: 3400, y: 310 }, { x: 3780, y: 230 },
   ],
   soloHazards: [
-    { x: 900,  y: 580, type: 'spike' },
-    { x: 1550, y: 480, type: 'spike' },
-    { x: 2050, y: 400, type: 'spike' },
-    { x: 2700, y: 450, type: 'spike' },
-    { x: 3200, y: 360, type: 'spike' },
-    { x: 3680, y: 280, type: 'spike' },
+    { x: 900,  y: 580, trapId: 'banana_peel' },
+    { x: 1550, y: 480, trapId: 'banana_peel' },
+    { x: 2050, y: 400, trapId: 'banana_peel' },
+    { x: 2700, y: 450, trapId: 'banana_peel' },
+    { x: 3200, y: 360, trapId: 'banana_peel' },
+    { x: 3680, y: 280, trapId: 'banana_peel' },
   ],
 }
 

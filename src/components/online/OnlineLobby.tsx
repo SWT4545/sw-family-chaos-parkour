@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Copy, Check, Crown, Map, UserX, Wifi } from 'lucide-react'
 import { useOnlineRoom } from '@/hooks/useOnlineRoom'
@@ -7,15 +7,19 @@ import { CHARACTERS_LIST } from '@/lib/game/characters/CharacterRegistry'
 import type { RoomPlayer } from '@/types/room'
 
 const MAPS = [
-  { id: 'rooftop',   name: 'Rooftop Mayhem',    desc: 'Urban skyline chaos' },
-  { id: 'warehouse', name: 'Warehouse Wipeout',  desc: 'Industrial obstacle course' },
-  { id: 'park',      name: 'Park Pandemonium',   desc: 'Suburban trap gauntlet' },
+  { id: 'rooftop',  name: 'Rooftop Mayhem',   desc: 'Urban skyline chaos' },
+  { id: 'factory',  name: 'Chaos Factory',    desc: 'Industrial wipeout' },
+  { id: 'neon',     name: 'Neon Skyline',     desc: 'Night city rush' },
+  { id: 'playroom', name: 'Playroom Panic',   desc: 'Toy room obstacle blitz' },
+  { id: 'fortress', name: 'Family Fortress',  desc: 'Tactical precision run' },
+  { id: 'domain',   name: "Governor's Domain", desc: 'Legacy arena showdown' },
+  { id: 'chaos',    name: 'Chaos Dimension',  desc: 'Everything broken — good luck' },
 ]
 
 interface Props {
   roomCode:        string
   localPlayerId:   string
-  onMatchStart:    () => void
+  onMatchStart:    (mapId: string) => void
   onLeave:         () => void
   onPlayersChange: (players: RoomPlayer[]) => void
 }
@@ -77,13 +81,23 @@ function PlayerRow({ player, isMe, isLocalHost, onKick }: {
 }
 
 export function OnlineLobby({ roomCode, localPlayerId, onMatchStart, onLeave, onPlayersChange }: Props) {
-  const { room, players, loading, me, allReady, toggleReady, startMatch, leave, kick, changeMap } =
+  const { room, players, loading, me, allReady, toggleReady, startMatch, leave, kick, changeMap, skipLeave } =
     useOnlineRoom(roomCode, localPlayerId)
   const [copied,   setCopied]   = useState(false)
   const [mapIndex, setMapIndex] = useState(0)
+  const matchStartedRef = useRef(false)
 
   // Propagate player list to parent so GameCanvas knows remote characters
   useEffect(() => { onPlayersChange(players) }, [players, onPlayersChange])
+
+  // Both host and joiner transition to game when room status becomes 'starting'
+  useEffect(() => {
+    if (room?.status === 'starting' && !matchStartedRef.current) {
+      matchStartedRef.current = true
+      skipLeave()
+      onMatchStart(room.mapId ?? 'rooftop')
+    }
+  }, [room?.status, room?.mapId, onMatchStart, skipLeave])
 
   const isHost   = me?.isHost ?? false
   const mapEntry = MAPS[mapIndex]
@@ -95,8 +109,7 @@ export function OnlineLobby({ roomCode, localPlayerId, onMatchStart, onLeave, on
   }
 
   async function handleStart() {
-    await startMatch()   // sets skipLeave = true, then updates room status
-    onMatchStart()
+    await startMatch()  // sets room status → 'starting'; effect handles transition for all players
   }
 
   async function handleLeave() {

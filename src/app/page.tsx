@@ -30,7 +30,7 @@ import { OnlineLobby } from '@/components/online/OnlineLobby'
 import { LevelSelect } from '@/components/screens/LevelSelect'
 import { CourseSelect } from '@/components/screens/CourseSelect'
 import { CourseVictoryScreen } from '@/components/screens/CourseVictoryScreen'
-import { ALL_LEVELS } from '@/lib/game/maps/levelRegistry'
+import { ALL_LEVELS, getLevelById } from '@/lib/game/maps/levelRegistry'
 import { getNextCourse } from '@/lib/game/maps/courses'
 import { CourseProgressionService } from '@/lib/profiles/CourseProgression'
 import { Character, GameScreen, GameMode } from '@/types/player'
@@ -385,7 +385,7 @@ export default function Home() {
             <OnlineLobby
               roomCode={roomCode}
               localPlayerId={localSessionId}
-              onMatchStart={startNewGame}
+              onMatchStart={(mapId) => { setSelectedLevel(getLevelById(mapId)); startNewGame() }}
               onLeave={() => { setRoomCode(null); setLocalSessionId(null); setOnlinePlayers([]); setScreen('online-gateway') }}
               onPlayersChange={setOnlinePlayers}
             />

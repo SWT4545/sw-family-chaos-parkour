@@ -46,6 +46,10 @@ export function useOnlineRoom(code: string | null, localPlayerId: string | null)
     await leaveRoom(code, localPlayerId)
   }, [code, localPlayerId])
 
+  const skipLeave = useCallback(() => {
+    skipLeaveRef.current = true
+  }, [])
+
   const kick = useCallback(async (playerId: string) => {
     if (!code) return
     await kickPlayer(code, playerId)
@@ -59,5 +63,5 @@ export function useOnlineRoom(code: string | null, localPlayerId: string | null)
   const me      = players.find(p => p.id === localPlayerId)
   const allReady = players.length >= 2 && players.filter(p => !p.isHost).every(p => p.ready)
 
-  return { room, players, loading, me, allReady, toggleReady, startMatch, leave, kick, changeMap }
+  return { room, players, loading, me, allReady, toggleReady, startMatch, leave, kick, changeMap, skipLeave }
 }

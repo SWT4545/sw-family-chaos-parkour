@@ -49,13 +49,13 @@ const CITY_HEIGHTS: MapDef = {
     { x: 2920, y: 290 }, { x: 3340, y: 200 }, { x: 3720, y: 200 },
   ],
   soloHazards: [
-    { x: 660,  y: 560, type: 'spike' },
-    { x: 1050, y: 460, type: 'spike' },
-    { x: 1500, y: 340, type: 'spike' },
-    { x: 2100, y: 300, type: 'spike' },
-    { x: 2850, y: 300, type: 'spike' },
-    { x: 3440, y: 250, type: 'spike' },
-    { x: 3820, y: 250, type: 'spike' },
+    { x: 660,  y: 560, trapId: 'slime_puddle' },
+    { x: 1050, y: 460, trapId: 'slime_puddle' },
+    { x: 1500, y: 340, trapId: 'slime_puddle' },
+    { x: 2100, y: 300, trapId: 'slime_puddle' },
+    { x: 2850, y: 300, trapId: 'slime_puddle' },
+    { x: 3440, y: 250, trapId: 'slime_puddle' },
+    { x: 3820, y: 250, trapId: 'slime_puddle' },
   ],
 }
 
