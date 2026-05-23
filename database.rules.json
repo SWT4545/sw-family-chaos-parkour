@@ -3,6 +3,8 @@
     "games": {
       "$roomCode": {
         "players": {
+          ".read": true,
+          ".write": false,
           "$playerId": {
             ".read": true,
             ".write": true

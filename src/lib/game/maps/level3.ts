@@ -6,6 +6,7 @@ export const LEVEL_3: LevelDef = {
   description: 'Tight platforms above the neon city. One slip and you fall.',
   unlockReward: 'Xanny unlocked',
   map: {
+    background: 'neon',
     width: 4400, height: 720,
     startPositions: [{ x: 120, y: 620 }, { x: 165, y: 620 }],
     finishX: 4200, finishY: 308,

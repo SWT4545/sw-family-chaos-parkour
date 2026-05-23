@@ -665,92 +665,162 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
     // ── Rendering ─────────────────────────────────────────────────
     function drawBg() {
       const nowT = Date.now()
+      const bg = activeMap.background ?? 'city'
 
-      // ── Deep sky ────────────────────────────────────────────────
+      // ── Sky gradient per theme ──────────────────────────────────
       const grad = ctx.createLinearGradient(0, 0, 0, CANVAS_H)
-      grad.addColorStop(0, '#01010c')
-      grad.addColorStop(0.55, '#05081c')
-      grad.addColorStop(1, '#0e1232')
+      if (bg === 'factory') {
+        grad.addColorStop(0, '#0a0500'); grad.addColorStop(0.55, '#1a0800'); grad.addColorStop(1, '#2d1000')
+      } else if (bg === 'neon') {
+        grad.addColorStop(0, '#020008'); grad.addColorStop(0.55, '#08001a'); grad.addColorStop(1, '#120030')
+      } else if (bg === 'playroom') {
+        grad.addColorStop(0, '#001830'); grad.addColorStop(0.55, '#002850'); grad.addColorStop(1, '#004080')
+      } else if (bg === 'fortress') {
+        grad.addColorStop(0, '#000a02'); grad.addColorStop(0.55, '#001808'); grad.addColorStop(1, '#002810')
+      } else if (bg === 'domain') {
+        grad.addColorStop(0, '#0c0008'); grad.addColorStop(0.4, '#2a0020'); grad.addColorStop(0.8, '#4a1800'); grad.addColorStop(1, '#200010')
+      } else if (bg === 'chaos') {
+        const t = (nowT * 0.0003) % (Math.PI * 2)
+        const r = Math.floor(10 + 8 * Math.sin(t))
+        const g = Math.floor(0 + 4 * Math.cos(t * 1.3))
+        const b = Math.floor(15 + 8 * Math.sin(t * 0.7))
+        grad.addColorStop(0, `rgb(${r},${g},${b})`); grad.addColorStop(0.5, `rgb(${r+5},${b},${g})`); grad.addColorStop(1, `rgb(${g},${r},${b+5})`)
+      } else if (bg === 'volcano') {
+        grad.addColorStop(0, '#0a0200'); grad.addColorStop(0.5, '#1e0500'); grad.addColorStop(0.85, '#3a0c00'); grad.addColorStop(1, '#200000')
+      } else if (bg === 'school') {
+        grad.addColorStop(0, '#001428'); grad.addColorStop(0.55, '#002040'); grad.addColorStop(1, '#003060')
+      } else {
+        // city (default)
+        grad.addColorStop(0, '#01010c'); grad.addColorStop(0.55, '#05081c'); grad.addColorStop(1, '#0e1232')
+      }
       ctx.fillStyle = grad
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H)
 
-      // ── Stars — twinkling, very slow parallax ─────────────────
+      // ── Stars / atmospheric particles ──────────────────────────
       const starShift = camX * 0.04
-      for (let i = 0; i < 110; i++) {
+      const starCount = (bg === 'factory' || bg === 'volcano') ? 40 : bg === 'chaos' ? 80 : 110
+      for (let i = 0; i < starCount; i++) {
         const stX = ((i * 9371 + 313) % activeMap.width) - (starShift % activeMap.width)
         const stY = (i * 4721 + 91) % (CANVAS_H * 0.48)
         const stR = i % 7 === 0 ? 1.4 : 0.7
         const twinkle = 0.45 + 0.55 * Math.sin(nowT * 0.002 + i * 0.73)
-        ctx.globalAlpha = twinkle * 0.8
-        ctx.fillStyle = i % 11 === 0 ? '#b8d4ff' : i % 13 === 0 ? '#ffd8a8' : '#ffffff'
+        ctx.globalAlpha = twinkle * (bg === 'factory' || bg === 'volcano' ? 0.3 : 0.8)
+        if (bg === 'chaos') {
+          ctx.fillStyle = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#c77dff'][i % 5]
+        } else if (bg === 'neon') {
+          ctx.fillStyle = ['#ff00ff','#00ffff','#ffff00','#ffffff'][i % 4]
+        } else {
+          ctx.fillStyle = i % 11 === 0 ? '#b8d4ff' : i % 13 === 0 ? '#ffd8a8' : '#ffffff'
+        }
         ctx.beginPath()
         ctx.arc(((stX % CANVAS_W) + CANVAS_W) % CANVAS_W, stY, stR, 0, Math.PI * 2)
         ctx.fill()
       }
       ctx.globalAlpha = 1
 
-      // ── Far city silhouettes — very slow ─────────────────────
+      // ── Factory: rising embers ──────────────────────────────────
+      if (bg === 'factory' || bg === 'volcano') {
+        const emberColor = bg === 'volcano' ? '#ff4400' : '#ff6600'
+        for (let i = 0; i < 18; i++) {
+          const ex = ((i * 4937 + nowT * 0.01 * (1 + i * 0.1)) % (CANVAS_W + 40)) - 20
+          const ey = CANVAS_H - ((nowT * 0.04 * (0.5 + i * 0.07) + i * 523) % CANVAS_H)
+          const er = 0.8 + (i % 3) * 0.6
+          ctx.globalAlpha = 0.3 + 0.4 * ((ey / CANVAS_H))
+          ctx.fillStyle = i % 3 === 0 ? '#ffaa00' : emberColor
+          ctx.beginPath(); ctx.arc(ex, ey, er, 0, Math.PI * 2); ctx.fill()
+        }
+        ctx.globalAlpha = 1
+      }
+
+      // ── Far silhouettes per theme ──────────────────────────────
       const fShift = camX * 0.10
       const FTW = CANVAS_W + 30
       const farBldgs: [number, number, number][] = [
         [0,65,90],[80,45,72],[155,72,118],[260,52,82],[335,68,125],
         [450,48,78],[520,88,142],[655,62,102],[745,78,118],[868,55,94],
       ]
+      const farColor = bg === 'factory' ? '#120500' : bg === 'neon' ? '#020010' : bg === 'playroom' ? '#001840'
+        : bg === 'fortress' ? '#000d04' : bg === 'domain' ? '#15000a' : bg === 'chaos' ? '#0a000a'
+        : bg === 'volcano' ? '#0f0200' : bg === 'school' ? '#001020' : '#040410'
       for (let tile = -1; tile < 3; tile++) {
         const ox = tile * FTW - (fShift % FTW)
         for (const [bx, bw, bh] of farBldgs) {
-          ctx.fillStyle = '#040410'
+          ctx.fillStyle = farColor
           ctx.fillRect(ox + bx, CANVAS_H - bh, bw, bh)
         }
       }
 
-      // ── Mid city — neon windows + rooftop accent ──────────────
+      // ── Mid-ground buildings ────────────────────────────────────
       const mShift = camX * 0.20
       const MTW = CANVAS_W + 80
-      const neonPalette = ['#60a5fa','#ec4899','#34d399','#f59e0b','#a78bfa','#fb923c']
       const midBldgs: [number, number, number][] = [
         [0,75,120],[105,55,96],[198,88,152],[316,65,102],[408,92,162],
         [538,72,118],[630,97,172],[768,76,128],[878,62,108],
       ]
+
+      let palette: string[]
+      let midBldgColor: string
+      if (bg === 'factory') {
+        palette = ['#ff6600','#ff4400','#ffaa00','#cc3300']; midBldgColor = '#1a0a00'
+      } else if (bg === 'neon') {
+        palette = ['#ff00ff','#00ffff','#ff0099','#9900ff','#00ff99','#ffff00']; midBldgColor = '#040015'
+      } else if (bg === 'playroom') {
+        palette = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#ff9f1c']; midBldgColor = '#002050'
+      } else if (bg === 'fortress') {
+        palette = ['#2d6a2d','#1a4d1a','#4d7c4d','#335533']; midBldgColor = '#001505'
+      } else if (bg === 'domain') {
+        palette = ['#ff6b35','#ff9f4a','#ffcc6b','#ff4575','#c77dff']; midBldgColor = '#200015'
+      } else if (bg === 'chaos') {
+        palette = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#c77dff','#ff9f1c']; midBldgColor = '#080008'
+      } else if (bg === 'volcano') {
+        palette = ['#ff4400','#ff2200','#ff6600','#cc2200']; midBldgColor = '#180300'
+      } else if (bg === 'school') {
+        palette = ['#4d96ff','#6bcb77','#ffd93d','#ff9f1c']; midBldgColor = '#001530'
+      } else {
+        palette = ['#60a5fa','#ec4899','#34d399','#f59e0b','#a78bfa','#fb923c']; midBldgColor = '#070722'
+      }
+
       for (let tile = -1; tile < 3; tile++) {
         const ox = tile * MTW - (mShift % MTW)
         for (const [bx, bw, bh] of midBldgs) {
           const by = CANVAS_H - bh
-          ctx.fillStyle = '#070722'
+          ctx.fillStyle = midBldgColor
           ctx.fillRect(ox + bx, by, bw, bh)
-          // Lit windows
+          // Windows
           for (let wy = 12; wy < bh - 10; wy += 18) {
             for (let wx = 5; wx < bw - 5; wx += 14) {
               const wk = (bx + wx * 3 + wy * 7) % 8
               if (wk < 2) {
-                ctx.fillStyle = 'rgba(96,165,250,0.17)'
+                ctx.fillStyle = bg === 'neon' ? 'rgba(255,0,255,0.22)' : 'rgba(96,165,250,0.17)'
                 ctx.fillRect(ox + bx + wx, by + wy, 9, 11)
               } else if (wk === 3) {
-                ctx.fillStyle = 'rgba(251,191,36,0.13)'
+                ctx.fillStyle = bg === 'factory' || bg === 'volcano' ? 'rgba(255,100,0,0.2)' : 'rgba(251,191,36,0.13)'
                 ctx.fillRect(ox + bx + wx, by + wy, 9, 11)
               }
             }
           }
-          // Neon rooftop bar
-          const nc = neonPalette[(bx * 3 + bh) % neonPalette.length]
-          ctx.globalAlpha = 0.55; ctx.fillStyle = nc
+          // Rooftop accent bar
+          const nc = palette[(bx * 3 + bh) % palette.length]
+          ctx.globalAlpha = bg === 'chaos' ? 0.8 : 0.55; ctx.fillStyle = nc
           ctx.fillRect(ox + bx, by, bw, 2)
-          ctx.globalAlpha = 0.14
+          ctx.globalAlpha = bg === 'chaos' ? 0.25 : 0.14
           ctx.fillRect(ox + bx, by, bw, 9)
           ctx.globalAlpha = 1
         }
       }
 
-      // ── Moving clouds ─────────────────────────────────────────
+      // ── Moving clouds / smoke ──────────────────────────────────
       const cloudShift = camX * 0.07
+      const cloudAlpha = bg === 'factory' || bg === 'volcano' ? 0.12 : 0.04
+      const cloudColor = bg === 'factory' ? '#402010' : bg === 'volcano' ? '#301008' : bg === 'fortress' ? '#103008' : '#8090e0'
       for (let i = 0; i < 6; i++) {
         const cspeed = (nowT * 0.00005 + i * 0.37) * CANVAS_W * 0.5
         const cx2 = ((i * 185 + cspeed - cloudShift) % (CANVAS_W * 1.4) + CANVAS_W * 1.4) % (CANVAS_W * 1.4) - 120
         const cy2 = 42 + (i * 43) % 58
         const cw2 = 88 + (i * 31) % 72
         ctx.save()
-        ctx.globalAlpha = 0.04 + (i % 3) * 0.018
-        ctx.fillStyle = '#8090e0'
+        ctx.globalAlpha = cloudAlpha + (i % 3) * 0.018
+        ctx.fillStyle = cloudColor
         ctx.beginPath()
         ctx.ellipse(cx2, cy2, cw2, 20, 0, 0, Math.PI * 2)
         ctx.fill()

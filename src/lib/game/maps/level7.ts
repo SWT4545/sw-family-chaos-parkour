@@ -6,6 +6,7 @@ export const LEVEL_7: LevelDef = {
   description: 'Total chaos. Random layouts, maximum traps. Only legends finish.',
   unlockReward: 'Chaos Champion title',
   map: {
+    background: 'chaos',
     width: 4400, height: 720,
     startPositions: [{ x: 120, y: 620 }, { x: 165, y: 620 }],
     finishX: 4200, finishY: 272,

@@ -6,6 +6,7 @@ export const LEVEL_2: LevelDef = {
   description: 'Navigate the factory floor — watch for the dip!',
   unlockReward: 'Brae unlocked',
   map: {
+    background: 'factory',
     width: 4400, height: 720,
     startPositions: [{ x: 120, y: 620 }, { x: 165, y: 620 }],
     finishX: 4200, finishY: 318,

@@ -6,6 +6,7 @@ export const LEVEL_5: LevelDef = {
   description: "Commander's domain. Every jump counts. No mistakes.",
   unlockReward: 'Commander elite skin',
   map: {
+    background: 'fortress',
     width: 4400, height: 720,
     startPositions: [{ x: 120, y: 620 }, { x: 165, y: 620 }],
     finishX: 4200, finishY: 290,
