@@ -3,6 +3,7 @@ import { useEffect, useRef, MutableRefObject } from 'react'
 import Matter from 'matter-js'
 import { Character } from '@/types/player'
 import { ChaosState, defaultChaosState } from '@/types/chaos'
+import type { GameRenderState } from '@/lib/game/rendering/GameRenderState'
 import type { MapDef } from '@/types/game'
 import { ROOFTOP_TEST } from '@/lib/game/maps/rooftopTest'
 import { trackEvent } from '@/lib/axiom/axiom'
@@ -134,11 +135,12 @@ interface Props {
   chaosRef:        MutableRefObject<ChaosState>
   remoteGhosts?:   RemoteGhost[]
   onTickSync?:     (state: PlayerSyncState) => void
-  onFinishSync?:   (state: PlayerSyncState) => void  // immediate publish on finish
+  onFinishSync?:   (state: PlayerSyncState) => void
   map?:            MapDef
+  gameRenderRef?:  MutableRefObject<GameRenderState>
 }
 
-export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, chaosRef, remoteGhosts, onTickSync, onFinishSync, map }: Props) {
+export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, chaosRef, remoteGhosts, onTickSync, onFinishSync, map, gameRenderRef }: Props) {
   const canvasRef        = useRef<HTMLCanvasElement>(null)
   const onVictoryRef     = useRef(onVictory)
   const remoteGhostsRef  = useRef<RemoteGhost[]>(remoteGhosts ?? [])
@@ -1636,6 +1638,36 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       camY += (leadBody.position.y - VIEWPORT_H * 0.52 - camY) * 0.09
       camX = Math.max(0, Math.min(camX, activeMap.width  - VIEWPORT_W))
       camY = Math.max(-60, Math.min(camY, activeMap.height - VIEWPORT_H + 100))
+
+      // Write render state for Three.js overlay (if wired up)
+      if (gameRenderRef) {
+        const p1fx = p1TrapEffect ?? p1PowerEffect
+        const p2fx = p2TrapEffect ?? p2PowerEffect
+        gameRenderRef.current = {
+          p1: {
+            x: p1Body.position.x, y: p1Body.position.y,
+            vx: p1Body.velocity.x, vy: p1Body.velocity.y,
+            grounded: p1g, facing: p1Facing === 'right' ? 1 : -1,
+            anim: p1Anim, landSquashT: p1LandSquashT,
+            characterId: player1.id, color: player1.color, name: player1.name,
+            effectType: p1fx?.type ?? null, effectEndsAt: p1fx?.endsAt ?? 0,
+          },
+          p2: (p2Body && player2) ? {
+            x: p2Body.position.x, y: p2Body.position.y,
+            vx: p2Body.velocity.x, vy: p2Body.velocity.y,
+            grounded: p2g, facing: p2Facing === 'right' ? 1 : -1,
+            anim: p2Anim, landSquashT: p2LandSquashT,
+            characterId: player2.id, color: player2.color, name: player2.name,
+            effectType: p2fx?.type ?? null, effectEndsAt: p2fx?.endsAt ?? 0,
+          } : null,
+          camX: Math.round(camX) * ZOOM,
+          camY: Math.round(camY) * ZOOM,
+          zoom: ZOOM,
+          canvasW: CANVAS_W,
+          canvasH: CANVAS_H,
+          timestamp: nowMs,
+        }
+      }
 
       // Key snapshot for next frame edge detection
       prevKeys.clear(); keys.forEach((k) => prevKeys.add(k))

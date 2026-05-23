@@ -13,9 +13,13 @@ import { ModeSelect } from '@/components/screens/ModeSelect'
 import { CharacterSelect } from '@/components/characters/CharacterSelect'
 import { FamilyLobby } from '@/components/lobby/FamilyLobby'
 import { GameCanvas } from '@/components/game/GameCanvas'
+import { ThreeCharacterLayer } from '@/components/game/ThreeCharacterLayer'
 import { GameHUD } from '@/components/hud/GameHUD'
 import { TrapHUD } from '@/components/game/TrapHUD'
 import { TouchControls } from '@/components/game/TouchControls'
+import { getRenderMode, setRenderMode } from '@/lib/game/rendering/CharacterRenderMode'
+import type { CharacterRenderMode } from '@/lib/game/rendering/CharacterRenderMode'
+import { defaultGameRenderState } from '@/lib/game/rendering/GameRenderState'
 import { VictoryScreen } from '@/components/screens/VictoryScreen'
 import { SoloVictoryScreen } from '@/components/screens/SoloVictoryScreen'
 import { Leaderboard } from '@/components/screens/Leaderboard'
@@ -82,7 +86,17 @@ export default function Home() {
   const [playerName,      setPlayerName]      = useState('Player')
   const [onlineAction,    setOnlineAction]    = useState<'create' | 'join'>('create')
 
-  const chaosRef = useRef<ChaosState>(defaultChaosState())
+  const chaosRef      = useRef<ChaosState>(defaultChaosState())
+  const gameRenderRef = useRef(defaultGameRenderState())
+  const [renderMode, setRenderModeState] = useState<CharacterRenderMode>('png2d')
+
+  useEffect(() => { setRenderModeState(getRenderMode()) }, [])
+
+  function toggleRenderMode() {
+    const next: CharacterRenderMode = renderMode === 'png2d' ? 'threePrimitive' : 'png2d'
+    setRenderMode(next)
+    setRenderModeState(next)
+  }
 
   // Build character map for online ghost lookup (uses proper Character type mapping)
   const characterMap = useMemo(() => {
@@ -442,7 +456,11 @@ export default function Home() {
                 remoteGhosts={gameMode === 'online' ? remoteGhosts : undefined}
                 onTickSync={gameMode === 'online' ? publishState : undefined}
                 onFinishSync={gameMode === 'online' ? publishStateNow : undefined}
+                gameRenderRef={renderMode === 'threePrimitive' ? gameRenderRef : undefined}
               />
+              {renderMode === 'threePrimitive' && (
+                <ThreeCharacterLayer gameRenderRef={gameRenderRef} />
+              )}
               <GameHUD
                 player1={player1}
                 player2={gameMode === 'solo' ? null : player2}
@@ -453,6 +471,18 @@ export default function Home() {
               {gameMode === '1v1' && (
                 <TrapHUD player1={player1} player2={player2} chaosRef={chaosRef} />
               )}
+              {/* Render mode toggle — bottom-right corner, small & unobtrusive */}
+              <button
+                onClick={toggleRenderMode}
+                className="absolute bottom-1 right-1 z-50 text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded pointer-events-auto select-none"
+                style={{
+                  background: renderMode === 'threePrimitive' ? 'rgba(139,92,246,0.75)' : 'rgba(0,0,0,0.45)',
+                  color: renderMode === 'threePrimitive' ? '#fff' : '#555',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
+              >
+                {renderMode === 'threePrimitive' ? '3D' : '2D'}
+              </button>
             </div>
             {/* Controls anchored to bottom of full screen, not the canvas box */}
             <TouchControls mode={gameMode === '1v1' ? '1v1' : gameMode === 'online' ? 'online' : 'solo'} />
