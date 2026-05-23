@@ -32,7 +32,68 @@ function Btn({ onStart, onEnd, children, label, style, className = '' }: BtnProp
   )
 }
 
-// Single-player controller cluster (left = dpad, right = actions)
+// P1 d-pad only
+function P1Dpad({ p, r, accentColor = '#fbbf24' }: {
+  p: (k: string) => void
+  r: (k: string) => void
+  accentColor?: string
+}) {
+  return (
+    <div className="pointer-events-auto flex flex-col items-center gap-1.5">
+      <span className="text-[10px] uppercase tracking-widest font-bold mb-0.5" style={{ color: accentColor }}>MOVE</span>
+      <div className="flex gap-2">
+        <Btn label="Left" onStart={() => p('a')} onEnd={() => r('a')}
+          className="w-[68px] h-[68px]"
+          style={{
+            background: 'rgba(255,255,255,0.12)',
+            border: '2px solid rgba(255,255,255,0.25)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15)',
+          }}>
+          <ChevronLeft size={30} />
+        </Btn>
+        <Btn label="Right" onStart={() => p('d')} onEnd={() => r('d')}
+          className="w-[68px] h-[68px]"
+          style={{
+            background: 'rgba(255,255,255,0.12)',
+            border: '2px solid rgba(255,255,255,0.25)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15)',
+          }}>
+          <ChevronRight size={30} />
+        </Btn>
+      </div>
+    </div>
+  )
+}
+
+// P1 action buttons (trap + jump stacked)
+function P1Actions({ p, r }: { p: (k: string) => void; r: (k: string) => void }) {
+  return (
+    <div className="pointer-events-auto flex flex-col items-center gap-2">
+      <Btn label="Trap" onStart={() => p('q')} onEnd={() => r('q')}
+        className="w-[68px] h-[68px]"
+        style={{
+          background: 'rgba(239,68,68,0.30)',
+          border: '2px solid rgba(239,68,68,0.65)',
+          boxShadow: '0 4px 14px rgba(239,68,68,0.35), inset 0 1px 0 rgba(255,150,150,0.2)',
+        }}>
+        <Zap size={26} className="text-red-300" />
+        <span className="text-[9px] uppercase tracking-wider text-red-400 leading-none mt-0.5">TRAP</span>
+      </Btn>
+      <Btn label="Jump" onStart={() => p(' ')} onEnd={() => r(' ')}
+        className="w-[80px] h-[80px]"
+        style={{
+          background: 'rgba(251,191,36,0.30)',
+          border: '2.5px solid rgba(251,191,36,0.75)',
+          boxShadow: '0 4px 18px rgba(251,191,36,0.40), inset 0 1px 0 rgba(255,240,100,0.25)',
+        }}>
+        <ArrowUp size={30} className="text-yellow-300" />
+        <span className="text-[9px] uppercase tracking-wider text-yellow-400 leading-none mt-0.5">JUMP</span>
+      </Btn>
+    </div>
+  )
+}
+
+// Combined cluster used in 1v1 (dpad left, actions right — stays as one unit)
 function P1Cluster({ p, r, accentColor = '#fbbf24' }: {
   p: (k: string) => void
   r: (k: string) => void
@@ -40,58 +101,8 @@ function P1Cluster({ p, r, accentColor = '#fbbf24' }: {
 }) {
   return (
     <div className="pointer-events-auto flex items-end gap-3">
-
-      {/* D-pad */}
-      <div className="flex flex-col items-center gap-1.5">
-        <span className="text-[10px] uppercase tracking-widest font-bold mb-0.5" style={{ color: accentColor }}>MOVE</span>
-        <div className="flex gap-2">
-          <Btn label="Left" onStart={() => p('a')} onEnd={() => r('a')}
-            className="w-[68px] h-[68px]"
-            style={{
-              background: 'rgba(255,255,255,0.12)',
-              border: '2px solid rgba(255,255,255,0.25)',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15)',
-            }}>
-            <ChevronLeft size={30} />
-          </Btn>
-          <Btn label="Right" onStart={() => p('d')} onEnd={() => r('d')}
-            className="w-[68px] h-[68px]"
-            style={{
-              background: 'rgba(255,255,255,0.12)',
-              border: '2px solid rgba(255,255,255,0.25)',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15)',
-            }}>
-            <ChevronRight size={30} />
-          </Btn>
-        </div>
-      </div>
-
-      {/* Action buttons */}
-      <div className="flex flex-col items-center gap-2">
-        {/* Trap — X button */}
-        <Btn label="Trap" onStart={() => p('q')} onEnd={() => r('q')}
-          className="w-[68px] h-[68px]"
-          style={{
-            background: 'rgba(239,68,68,0.30)',
-            border: '2px solid rgba(239,68,68,0.65)',
-            boxShadow: '0 4px 14px rgba(239,68,68,0.35), inset 0 1px 0 rgba(255,150,150,0.2)',
-          }}>
-          <Zap size={26} className="text-red-300" />
-          <span className="text-[9px] uppercase tracking-wider text-red-400 leading-none mt-0.5">TRAP</span>
-        </Btn>
-        {/* Jump — A button */}
-        <Btn label="Jump" onStart={() => p(' ')} onEnd={() => r(' ')}
-          className="w-[80px] h-[80px]"
-          style={{
-            background: `rgba(251,191,36,0.30)`,
-            border: '2.5px solid rgba(251,191,36,0.75)',
-            boxShadow: '0 4px 18px rgba(251,191,36,0.40), inset 0 1px 0 rgba(255,240,100,0.25)',
-          }}>
-          <ArrowUp size={30} className="text-yellow-300" />
-          <span className="text-[9px] uppercase tracking-wider text-yellow-400 leading-none mt-0.5">JUMP</span>
-        </Btn>
-      </div>
-
+      <P1Dpad p={p} r={r} accentColor={accentColor} />
+      <P1Actions p={p} r={r} />
     </div>
   )
 }
@@ -180,19 +191,28 @@ export function TouchControls({ mode = 'solo' }: TouchControlsProps) {
 
   const showP2 = mode === '1v1'
 
+  const pb = 'max(16px, env(safe-area-inset-bottom))'
+
+  if (showP2) {
+    return (
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between items-end z-20"
+        style={{ paddingLeft: '8px', paddingRight: '8px', paddingBottom: pb }}
+      >
+        <P1Cluster p={p} r={r} />
+        <P2Cluster p={p} r={r} />
+      </div>
+    )
+  }
+
+  // Solo / online — dpad bottom-left, actions bottom-right
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 bottom-0 flex z-20"
-      style={{
-        justifyContent: showP2 ? 'space-between' : 'flex-start',
-        alignItems: 'flex-end',
-        paddingLeft:   showP2 ? '8px'  : '12px',
-        paddingRight:  showP2 ? '8px'  : '12px',
-        paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
-      }}
+      className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between items-end z-20"
+      style={{ paddingLeft: '12px', paddingRight: '12px', paddingBottom: pb }}
     >
-      <P1Cluster p={p} r={r} />
-      {showP2 && <P2Cluster p={p} r={r} />}
+      <P1Dpad p={p} r={r} />
+      <P1Actions p={p} r={r} />
     </div>
   )
 }
