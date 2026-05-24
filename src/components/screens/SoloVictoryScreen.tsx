@@ -12,10 +12,10 @@ function fmtTime(s: number) {
   return `${m}:${sec.toString().padStart(2, '0')}`
 }
 
-const GAMEPLAY_IDS = new Set(['commander', 'bj', 'brae', 'xanny'])
-function gameplayImg(id: string) {
-  return GAMEPLAY_IDS.has(id)
-    ? `/game-assets/characters-gameplay/${id}/${id}-full.png`
+const CELEB_IDS = new Set(['commander', 'bj', 'brae', 'xanny'])
+function celebImg(id: string) {
+  return CELEB_IDS.has(id)
+    ? `/game-assets/characters-victory/${id}/${id}-celeb.png`
     : `/game-assets/characters-normalized/${id}/${id}-full.png`
 }
 
@@ -132,7 +132,7 @@ export function SoloVictoryScreen({ player, time, coins, onPlayAgain, onBackToMe
       {/* Character image */}
       <motion.img
         key={player.id}
-        src={gameplayImg(player.id)}
+        src={celebImg(player.id)}
         alt={player.name}
         className="absolute bottom-0 left-1/2 -translate-x-1/2 pointer-events-none select-none z-20"
         style={{ maxHeight: '66vh', maxWidth: '100vw', width: 'auto', height: 'auto', objectFit: 'contain', objectPosition: 'bottom center' }}
