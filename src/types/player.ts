@@ -1,6 +1,6 @@
 import type { CharacterAssets, MovementStats } from '@/lib/game/characters/CharacterRegistry'
 
-export type CharacterId = 'commander' | 'bj' | 'brae' | 'xanny'
+export type CharacterId = 'commander' | 'bj' | 'brae' | 'xanny' | 'zaya'
 export type GameMode   = 'solo' | '1v1' | 'online'
 export type GameScreen =
   | 'main-menu'

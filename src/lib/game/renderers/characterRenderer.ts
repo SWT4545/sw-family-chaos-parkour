@@ -12,7 +12,7 @@
  */
 
 // Characters that have a gameplay-optimized asset
-const GAMEPLAY_ASSET_IDS = new Set(['commander', 'bj', 'brae', 'xanny'])
+const GAMEPLAY_ASSET_IDS = new Set(['commander', 'bj', 'brae', 'xanny', 'zaya'])
 
 // ── Visual sizes matched to actual image aspect ratios ───────────
 // Sized so character occupies ~20-24% of the 540px canvas height.
@@ -22,7 +22,7 @@ export const CHAR_SIZES: Record<string, { w: number; h: number }> = {
   bj:        { w: 170, h:  92 },  // 500×270 → ratio 1.852 (wide action pose)
   brae:      { w: 170, h:  89 },  // 500×261 → ratio 1.916 (wide action pose)
   xanny:     { w: 130, h: 100 },  // 500×385 → ratio 1.299
-  zaya:      { w: 80,  h: 100 },  // no gameplay asset yet
+  zaya:      { w: 122, h: 100 },  // 500×410 → ratio 1.220
   governor:  { w: 90,  h: 115 },  // no gameplay asset yet
 }
 const DEFAULT_SIZE = { w: 88, h: 110 }
@@ -310,6 +310,34 @@ function drawAura(
     ctx.fillStyle = grd
     ctx.fillRect(s.x - 42, midY - 42, 84, 84)
     ctx.restore()
+
+  } else if (s.characterId === 'zaya') {
+    // Gravity dash sparkle trail — always present, intensifies with speed
+    const spd   = Math.abs(s.vx)
+    const pulse = 0.4 + 0.6 * Math.sin(s.now * 0.006)
+    ctx.save()
+    ctx.globalAlpha = (0.14 + 0.08 * pulse) * Math.max(0.5, Math.min(1, spd / 5))
+    const grd = ctx.createRadialGradient(s.x, midY, 0, s.x, midY, 40)
+    grd.addColorStop(0, '#ec4899'); grd.addColorStop(1, 'transparent')
+    ctx.fillStyle = grd
+    ctx.fillRect(s.x - 40, midY - 40, 80, 80)
+    ctx.restore()
+    // Speed sparkle dots
+    if (spd > 1.5) {
+      const count = Math.min(5, Math.floor(spd / 2))
+      ctx.save()
+      const dir = s.vx > 0 ? -1 : 1
+      for (let i = 1; i <= count; i++) {
+        const tx = s.x + dir * i * 14
+        const ty = footY - size.h * (0.3 + Math.random() * 0.4)
+        ctx.globalAlpha = (0.5 - i * 0.08) * Math.min(1, spd / 8)
+        ctx.fillStyle   = i % 2 === 0 ? '#ec4899' : '#f472b6'
+        ctx.beginPath()
+        ctx.arc(tx, ty, 2.5 - i * 0.3, 0, Math.PI * 2)
+        ctx.fill()
+      }
+      ctx.restore()
+    }
 
   } else if (s.characterId === 'xanny') {
     // Speed trail — only when running fast

@@ -85,6 +85,7 @@ export const CHAR_TRAP: Record<CharacterId, TrapId> = {
   bj:        'bear_trap',
   brae:      'fake_block',
   xanny:     'banana_peel',
+  zaya:      'slime_puddle',
 }
 
 export const TRAP_LIST: TrapDef[] = Object.values(TRAP_REGISTRY)

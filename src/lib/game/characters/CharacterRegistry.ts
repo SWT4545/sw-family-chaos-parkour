@@ -28,7 +28,7 @@ export interface CharacterEntry {
   movementStats:      MovementStats
 }
 
-const GAMEPLAY_ASSET_IDS = new Set(['commander', 'bj', 'brae', 'xanny'])
+const GAMEPLAY_ASSET_IDS = new Set(['commander', 'bj', 'brae', 'xanny', 'zaya'])
 
 function assetPath(id: string) {
   const norm     = `/game-assets/characters-normalized/${id}`
@@ -46,7 +46,34 @@ function assetPath(id: string) {
   }
 }
 
+function zayaAssets() {
+  return {
+    card:         '/Zaya-card.png',
+    avatar:       '/Zaya-card.png',
+    full:         '/Zaya-gameplay.png',
+    icon:         '/Zaya-card.png',
+    victory:      '/game-assets/characters-victory/zaya/zaya-celeb.png',
+    gameplayFull: '/game-assets/characters-gameplay/zaya/zaya-full.png',
+  }
+}
+
 export const CHARACTER_REGISTRY: Record<CharacterId, CharacterEntry> = {
+  zaya: {
+    id:                 'zaya',
+    displayName:        'Zaya',
+    role:               'Gravity Dasher',
+    tagline:            'Xanny\'s little secret. Fastest thing you\'ll ever see.',
+    primaryColor:       '#ec4899',
+    abilityName:        'Gravity Dash',
+    abilityDescription: 'Short burst of extreme speed — leaves everyone in the dust.',
+    assets:             zayaAssets(),
+    movementStats: {
+      speed:                  11.0,
+      jump:                   19.5,
+      acceleration:           0.38,
+      specialAbilityCooldown: 4,
+    },
+  },
   commander: {
     id:                 'commander',
     displayName:        'The Commander',

@@ -15,6 +15,7 @@ export const CHARACTER_ALIGNMENT: Record<CharacterId, AssetAlignment> = {
   bj:        { offsetX: 0, offsetY: 0, scale: 1, anchorX: 0.5, anchorY: 0.5 },
   brae:      { offsetX: 0, offsetY: 0, scale: 1, anchorX: 0.5, anchorY: 0.5 },
   xanny:     { offsetX: 0, offsetY: 0, scale: 1, anchorX: 0.5, anchorY: 0.5 },
+  zaya:      { offsetX: 0, offsetY: 0, scale: 1, anchorX: 0.5, anchorY: 0.5 },
 }
 
 /** Returns the CSS transform and transformOrigin strings for a given alignment. */

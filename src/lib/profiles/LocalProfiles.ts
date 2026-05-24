@@ -34,6 +34,13 @@ const DEFAULT_PROFILES: LocalProfile[] = [
     unlockedTrails: [], unlockedEmotes: [], unlockedOutfits: [],
     createdAt: Date.now(), lastUpdated: Date.now(),
   },
+  {
+    id: 'zaya', playerName: 'Zaya', selectedCharacterId: 'zaya',
+    totalCoins: 0, wins: 0, losses: 0, soloRuns: 0,
+    bestSoloTime: null, favoriteCharacter: 'zaya',
+    unlockedTrails: [], unlockedEmotes: [], unlockedOutfits: [],
+    createdAt: Date.now(), lastUpdated: Date.now(),
+  },
 ]
 
 // ─── Storage helpers ──────────────────────────────────────────────────────────
