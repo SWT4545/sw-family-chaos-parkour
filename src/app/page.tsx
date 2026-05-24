@@ -43,6 +43,7 @@ import { DIFFICULTY_CONFIGS as DIFF_CONFIGS } from '@/types/game'
 import type { RoomPlayer } from '@/types/room'
 import { ChaosState, defaultChaosState } from '@/types/chaos'
 import type { CourseProgressionState } from '@/lib/profiles/CourseProgression'
+import { submitLeaderboardScore } from '@/lib/firebase/leaderboards'
 
 const slide = {
   initial:    { opacity: 0, scale: 0.98 },
@@ -199,6 +200,20 @@ export default function Home() {
     } else if ((gameMode === '1v1' || gameMode === 'online') && player1 && player2) {
       LocalProfiles.recordMatch(player1.id, player2.id, winnerId, coins.p1, coins.p2)
     }
+
+    // Sync updated stats to global Firestore leaderboard
+    const now = Date.now()
+    const syncProfile = (charId: string, name: string) => {
+      const p = LocalProfiles.getByCharacter(charId as never)
+      if (!p) return
+      submitLeaderboardScore({ playerId: charId, playerName: name, characterId: charId, score: p.wins,       category: 'wins',      updatedAt: now })
+      submitLeaderboardScore({ playerId: charId, playerName: name, characterId: charId, score: p.totalCoins, category: 'coins',     updatedAt: now })
+      if (p.bestSoloTime !== null) {
+        submitLeaderboardScore({ playerId: charId, playerName: name, characterId: charId, score: p.bestSoloTime, category: 'solo-time', updatedAt: now })
+      }
+    }
+    if (player1) syncProfile(player1.id, player1.name)
+    if (player2) syncProfile(player2.id, player2.name)
 
     DailyChallenges.onMatchComplete({
       mode:             gameMode === 'solo' ? 'solo' : '1v1',
