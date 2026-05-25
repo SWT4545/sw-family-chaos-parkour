@@ -28,7 +28,7 @@ export function WorldSelect({ onSelectLevel, onBack }: Props) {
   }, [])
 
   const isWorldUnlocked = (world: WorldDef) =>
-    profile?.unlockedWorlds.includes(world.id) ?? world.id === 'world1'
+    profile?.unlockedWorlds.includes(world.id) ?? world.id === 'family-city'
 
   const isLevelUnlocked = (world: WorldDef, level: WorldLevelDef) => {
     if (!isWorldUnlocked(world)) return false

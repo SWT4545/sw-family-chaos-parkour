@@ -6,12 +6,14 @@ import { motion, type Variants } from 'framer-motion'
 const HUB_URL = 'https://sw-game-hub.vercel.app'
 
 interface MainMenuProps {
-  onPlay:            () => void
-  onLeaderboard:     () => void
-  onDailyChallenges: () => void
-  onSettings:        () => void
-  onShop:            () => void
-  onSeason:          () => void
+  onPlay:               () => void
+  onLeaderboard:        () => void
+  onDailyChallenges:    () => void
+  onSettings:           () => void
+  onShop:               () => void
+  onSeason:             () => void
+  onContinueCampaign?:  () => void
+  campaignLevelName?:   string
 }
 
 const stagger: Variants = {
@@ -28,7 +30,7 @@ const fadeUp: Variants = {
 // Normal document flow: header → poster → actions → footer.
 // No content overlaid on the poster.
 
-function MobileMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onShop, onSeason }: MainMenuProps) {
+function MobileMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onShop, onSeason, onContinueCampaign, campaignLevelName }: MainMenuProps) {
   return (
     <div
       className="xl:hidden flex flex-col bg-black h-dvh overflow-y-auto"
@@ -78,6 +80,20 @@ function MobileMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onSh
         >
           Run. Dodge. Trap. Win.
         </motion.p>
+
+        {/* Continue Campaign (conditional) */}
+        {onContinueCampaign && campaignLevelName && (
+          <motion.button
+            variants={fadeUp}
+            onClick={onContinueCampaign}
+            className="w-full max-w-xs font-bold text-sm uppercase tracking-widest text-white border border-white/20 bg-white/08 hover:bg-white/15 transition-colors mb-2"
+            style={{ height: '48px', borderRadius: '16px' }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+          >
+            ▶ Continue: {campaignLevelName}
+          </motion.button>
+        )}
 
         {/* Primary CTA */}
         <motion.button
@@ -158,7 +174,7 @@ function MobileMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onSh
 // ─── Desktop layout ───────────────────────────────────────────────────────────
 // Cinematic full-bleed poster with gradient overlay + bottom navigation.
 
-function DesktopMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onShop, onSeason }: MainMenuProps) {
+function DesktopMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onShop, onSeason, onContinueCampaign, campaignLevelName }: MainMenuProps) {
   return (
     <div className="hidden xl:flex flex-col relative h-dvh overflow-hidden bg-black">
       {/* Poster — object-contain so the full art shows, no cropping */}
@@ -204,6 +220,19 @@ function DesktopMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onS
         >
           Run. Dodge. Trap. Win.
         </motion.p>
+
+        {/* Continue Campaign (conditional) */}
+        {onContinueCampaign && campaignLevelName && (
+          <motion.button
+            variants={fadeUp}
+            onClick={onContinueCampaign}
+            className="w-full max-w-xs py-3 rounded-xl font-bold text-sm uppercase tracking-widest text-white border border-white/20 bg-white/08 hover:bg-white/15 transition-colors"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+          >
+            ▶ Continue: {campaignLevelName}
+          </motion.button>
+        )}
 
         <motion.button
           variants={fadeUp}
@@ -258,11 +287,11 @@ function DesktopMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onS
 
 // ─── Exported component ───────────────────────────────────────────────────────
 
-export function MainMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onShop, onSeason }: MainMenuProps) {
+export function MainMenu({ onPlay, onLeaderboard, onDailyChallenges, onSettings, onShop, onSeason, onContinueCampaign, campaignLevelName }: MainMenuProps) {
   return (
     <>
-      <MobileMenu  onPlay={onPlay} onLeaderboard={onLeaderboard} onDailyChallenges={onDailyChallenges} onSettings={onSettings} onShop={onShop} onSeason={onSeason} />
-      <DesktopMenu onPlay={onPlay} onLeaderboard={onLeaderboard} onDailyChallenges={onDailyChallenges} onSettings={onSettings} onShop={onShop} onSeason={onSeason} />
+      <MobileMenu  onPlay={onPlay} onLeaderboard={onLeaderboard} onDailyChallenges={onDailyChallenges} onSettings={onSettings} onShop={onShop} onSeason={onSeason} onContinueCampaign={onContinueCampaign} campaignLevelName={campaignLevelName} />
+      <DesktopMenu onPlay={onPlay} onLeaderboard={onLeaderboard} onDailyChallenges={onDailyChallenges} onSettings={onSettings} onShop={onShop} onSeason={onSeason} onContinueCampaign={onContinueCampaign} campaignLevelName={campaignLevelName} />
     </>
   )
 }

@@ -4,15 +4,15 @@ import { WORLD_REGISTRY, getLevel } from './WorldRegistry'
 // ── Character unlock conditions ───────────────────────────────────────────────
 const CHARACTER_UNLOCK_LEVEL: Record<string, string> = {
   bj:       'family-city-training-grounds',
-  brae:     'family-city-chaos-factory',
-  xanny:    'family-city-neon-skyline',
-  zaya:     'family-city-governors-domain',
+  brae:     'family-city-rooftop-run',
+  xanny:    'family-city-school-dash',
+  zaya:     'family-city-boss-chaos-drone',
   governor: 'w2_boss',
 }
 
 // ── World unlock conditions ───────────────────────────────────────────────────
 const WORLD_UNLOCK_BOSS: Record<string, string> = {
-  world2: 'family-city-governors-domain',
+  world2: 'family-city-boss-chaos-drone',
   world3: 'w2_boss',
   world4: 'w3_boss',
   world5: 'w4_boss',

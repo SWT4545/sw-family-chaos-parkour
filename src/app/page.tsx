@@ -16,6 +16,7 @@ import { syncProfileToLeaderboards } from '@/lib/game/leaderboard/LeaderboardSer
 import { runMigrationIfNeeded } from '@/lib/game/migrations/migratePhase9'
 import { ShopService } from '@/lib/game/shop/ShopService'
 import { CHARACTERS } from '@/lib/game/characters/characters'
+import { WORLD_REGISTRY, getAllLevels } from '@/lib/game/levels/WorldRegistry'
 import { useGameSync } from '@/hooks/useGameSync'
 import { MainMenu } from '@/components/MainMenu'
 import { ModeSelect } from '@/components/screens/ModeSelect'
@@ -122,6 +123,9 @@ export default function Home() {
   const [playerName,      setPlayerName]      = useState('Player')
   const [onlineAction,    setOnlineAction]    = useState<'create' | 'join'>('create')
 
+  const [returnScreenAfterChar, setReturnScreenAfterChar] = useState<'world-select' | 'lobby'>('world-select')
+  const [campaignLevelName, setCampaignLevelName] = useState<string | undefined>(undefined)
+
   const chaosRef      = useRef<ChaosState>(defaultChaosState())
   const gameRenderRef = useRef(defaultGameRenderState())
   const [renderMode, setRenderModeState] = useState<CharacterRenderMode>('png2d')
@@ -191,6 +195,16 @@ export default function Home() {
     if (profiles.length > 0) setPlayerName(profiles[0].playerName)
   }, [])
 
+  // Load campaign continue info on boot
+  useEffect(() => {
+    const profile = PlayerProfileService.getCurrent()
+    if (profile?.currentCampaignLevelId) {
+      const allLevels = getAllLevels()
+      const level = allLevels.find(l => l.id === profile.currentCampaignLevelId)
+      if (level) setCampaignLevelName(level.title)
+    }
+  }, [])
+
   // ── Character select ──────────────────────────────────────────────
   function handleCharSelect(char: Character) {
     if (gameMode === 'online') {
@@ -201,7 +215,10 @@ export default function Home() {
     if (selectingFor === 1) {
       setPlayer1(char)
       if (gameMode === '1v1') { setSelectingFor(2) }
-      else { setScreen('world-select') }
+      else if (returnScreenAfterChar === 'lobby') {
+        setReturnScreenAfterChar('world-select')
+        setScreen('lobby')
+      } else { setScreen('world-select') }
     } else {
       setPlayer2(char)
       setScreen('level-select')
@@ -212,6 +229,29 @@ export default function Home() {
     if (gameMode === 'online') { setScreen('online-gateway'); return }
     if (selectingFor === 1) { setScreen('mode-select') }
     else { setSelectingFor(1); setPlayer2(null) }
+  }
+
+  function handleContinueCampaign() {
+    const profile = PlayerProfileService.getCurrent()
+    if (!profile?.currentCampaignLevelId) return
+    const allLevels = getAllLevels()
+    const level = allLevels.find(l => l.id === profile.currentCampaignLevelId)
+    if (!level) return
+    const world = WORLD_REGISTRY.find(w => w.id === level.worldId)
+    if (!world) return
+    setGameMode('solo')
+    setPlayer1(null)
+    setSelectingFor(1)
+    setSelectedWorldDef(world)
+    setSelectedWorldLevel(level)
+    setSelectedLevel({
+      id: level.id, name: level.title, subtitle: level.subtitle,
+      difficulty: level.difficulty as never, difficultyNum: level.levelNumber,
+      description: level.description, unlockReward: '',
+      map: level.map,
+    })
+    setReturnScreenAfterChar('lobby')
+    setScreen('character-select')
   }
 
   // ── Online gateway ────────────────────────────────────────────────
@@ -434,6 +474,8 @@ export default function Home() {
               onSettings={() => setSettingsOpen(true)}
               onShop={() => setShopOpen(true)}
               onSeason={() => setSeasonOpen(true)}
+              onContinueCampaign={campaignLevelName ? handleContinueCampaign : undefined}
+              campaignLevelName={campaignLevelName}
             />
           </motion.div>
         )}
@@ -687,7 +729,8 @@ export default function Home() {
                 player2={gameMode === 'solo' ? null : player2}
                 matchStartTime={matchStart}
                 chaosRef={chaosRef}
-                mode={gameMode === 'solo' ? 'solo' : '1v1'}
+                mode={gameMode === 'solo' ? 'solo' : gameMode === 'online' ? 'online' : '1v1'}
+                levelName={selectedWorldLevel?.title ?? selectedLevel.name}
               />
               {gameMode === '1v1' && (
                 <TrapHUD player1={player1} player2={player2} chaosRef={chaosRef} />
@@ -796,6 +839,12 @@ export default function Home() {
               onRetry={() => { setSoloResult(null); chaosRef.current = defaultChaosState(); setMatchStart(Date.now()); setScreen('game') }}
               onWorldMap={() => setScreen('world-select')}
               onMainMenu={() => setScreen('main-menu')}
+              onChangeCharacter={() => {
+                setReturnScreenAfterChar('lobby')
+                setSelectingFor(1)
+                setPlayer1(null)
+                setScreen('character-select')
+              }}
             />
           </motion.div>
         )}

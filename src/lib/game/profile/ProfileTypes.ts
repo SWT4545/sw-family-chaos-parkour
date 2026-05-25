@@ -139,7 +139,7 @@ export function defaultProfile(playerId: string, displayName: string, characterI
     multiplayerWins:   0,
     selectedCharacterId: characterId,
     unlockedCharacters:  ['commander'],
-    unlockedWorlds:      ['world1'],
+    unlockedWorlds:      ['family-city'],
     completedWorlds:     [],
     unlockedCourses:     ['rooftop-run'],
     completedLevels:     [],

@@ -10,25 +10,27 @@ interface Props {
   player2:        Character | null
   matchStartTime: number
   chaosRef:       MutableRefObject<ChaosState>
-  mode:           'solo' | '1v1'
+  mode:           'solo' | '1v1' | 'online'
+  levelName?:     string
 }
 
-export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode }: Props) {
-  const [remaining, setRemaining] = useState(MATCH_SECS)
+export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode, levelName }: Props) {
+  const [display, setDisplay] = useState(mode === 'solo' ? 0 : MATCH_SECS)
   const [coins, setCoins] = useState({ p1: 0, p2: 0 })
 
   useEffect(() => {
     const id = setInterval(() => {
-      const r = Math.max(0, MATCH_SECS - (Date.now() - matchStartTime) / 1000)
-      setRemaining(r)
+      const elapsed = Math.max(0, (Date.now() - matchStartTime) / 1000)
+      const val = mode === 'solo' ? elapsed : Math.max(0, MATCH_SECS - elapsed)
+      setDisplay(val)
       setCoins({ p1: chaosRef.current.p1Coins, p2: chaosRef.current.p2Coins })
     }, 500)
     return () => clearInterval(id)
-  }, [matchStartTime, chaosRef])
+  }, [matchStartTime, chaosRef, mode])
 
-  const mins    = Math.floor(remaining / 60)
-  const secs    = Math.floor(remaining % 60)
-  const urgent  = remaining < 60
+  const mins    = Math.floor(display / 60)
+  const secs    = Math.floor(display % 60)
+  const urgent  = mode !== 'solo' && display < 60
   const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`
 
   return (
@@ -36,10 +38,6 @@ export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode }: Pr
       className="absolute inset-x-0 top-0 pointer-events-none select-none"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
-      {/*
-        Header-area HUD — flush to top with only safe-area inset,
-        no extra margin so it sits in the true header zone.
-      */}
       <div
         className="flex items-center justify-between gap-1 px-3 py-1.5 backdrop-blur-sm"
         style={{ background: 'rgba(0,0,0,0.80)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}
@@ -66,8 +64,8 @@ export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode }: Pr
           </span>
         </div>
 
-        {/* P2 or mode label */}
-        {mode === '1v1' && player2 ? (
+        {/* Right side: P2 info for 1v1/online, or level name for solo */}
+        {mode !== 'solo' && player2 ? (
           <div className="flex items-center gap-1.5 min-w-0 justify-end">
             <span className="text-[9px] font-bold text-yellow-400 tabular-nums">💰{coins.p2}</span>
             <span className="font-black text-[10px] uppercase tracking-wider truncate" style={{ color: player2.color }}>
@@ -79,8 +77,8 @@ export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode }: Pr
             />
           </div>
         ) : (
-          <div className="text-[9px] text-gray-600 font-bold uppercase tracking-widest">
-            {mode === 'solo' ? 'SOLO' : ''}
+          <div className="text-[9px] text-gray-500 font-bold uppercase tracking-widest truncate max-w-[90px] text-right">
+            {levelName ?? ''}
           </div>
         )}
       </div>

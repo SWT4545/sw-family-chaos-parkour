@@ -4,15 +4,16 @@ import { RotateCcw, Map, Home, Heart } from 'lucide-react'
 import type { Character } from '@/types/player'
 
 interface Props {
-  player:      Character
-  levelTitle:  string
-  livesUsed:   number
-  onRetry:     () => void
-  onWorldMap:  () => void
-  onMainMenu:  () => void
+  player:            Character
+  levelTitle:        string
+  livesUsed:         number
+  onRetry:           () => void
+  onWorldMap:        () => void
+  onMainMenu:        () => void
+  onChangeCharacter?: () => void
 }
 
-export function GameOverScreen({ player, levelTitle, livesUsed, onRetry, onWorldMap, onMainMenu }: Props) {
+export function GameOverScreen({ player, levelTitle, livesUsed, onRetry, onWorldMap, onMainMenu, onChangeCharacter }: Props) {
   const col = player.color
 
   return (
@@ -108,6 +109,17 @@ export function GameOverScreen({ player, levelTitle, livesUsed, onRetry, onWorld
         >
           <Map size={14} /> World Map
         </button>
+
+        {/* Change Character */}
+        {onChangeCharacter && (
+          <button
+            onClick={onChangeCharacter}
+            className="flex items-center justify-center gap-2 rounded-xl font-semibold text-xs uppercase tracking-wider border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-colors"
+            style={{ height: 42 }}
+          >
+            Change Character
+          </button>
+        )}
 
         {/* Main Menu */}
         <button

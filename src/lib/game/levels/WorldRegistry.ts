@@ -7,7 +7,7 @@ import { MAP_2, MAP_3, MAP_4, MAP_5, MAP_6, MAP_7 } from './worldMaps'
 export const WORLD_REGISTRY: WorldDef[] = [
   // ── WORLD 1: Family City ───────────────────────────────────────────────────
   {
-    id:          'world1',
+    id:          'family-city',
     name:        'Family City',
     subtitle:    'Where it all begins',
     theme:       'family_city',
@@ -18,7 +18,7 @@ export const WORLD_REGISTRY: WorldDef[] = [
     mechanics:   ['basic', 'checkpoints', 'coins', 'traps'],
     levels: [
       {
-        id: 'family-city-training-grounds', worldId: 'world1', levelNumber: 1, isBoss: false,
+        id: 'family-city-training-grounds', worldId: 'family-city', levelNumber: 1, isBoss: false,
         title: 'Training Grounds', subtitle: 'City Rooftops at Sunset',
         difficulty: 'starter',
         description: 'Learn the basics. Jump, dodge, and make it to the finish!',
@@ -27,11 +27,11 @@ export const WORLD_REGISTRY: WorldDef[] = [
         parTimeMs: 90000, threeStarMs: 60000,
         completionReward: { coins: 25, xp: 50, unlocks: ['bj'] },
         map: ROOFTOP_TEST,
-        nextLevelId: 'family-city-chaos-factory',
+        nextLevelId: 'family-city-rooftop-run',
       },
       {
-        id: 'family-city-chaos-factory', worldId: 'world1', levelNumber: 2, isBoss: false,
-        title: 'Chaos Factory', subtitle: 'Industrial Wipeout',
+        id: 'family-city-rooftop-run', worldId: 'family-city', levelNumber: 2, isBoss: false,
+        title: 'Rooftop Run', subtitle: 'City Rooftop Sprint',
         difficulty: 'normal',
         description: 'Navigate the factory floor — watch for the dip!',
         mechanics: ['basic', 'checkpoints', 'coins', 'traps'],
@@ -39,11 +39,11 @@ export const WORLD_REGISTRY: WorldDef[] = [
         parTimeMs: 100000, threeStarMs: 70000,
         completionReward: { coins: 35, xp: 60, unlocks: ['brae'] },
         map: MAP_2,
-        nextLevelId: 'family-city-neon-skyline',
+        nextLevelId: 'family-city-school-dash',
       },
       {
-        id: 'family-city-neon-skyline', worldId: 'world1', levelNumber: 3, isBoss: false,
-        title: 'Neon Skyline', subtitle: 'Night City Rush',
+        id: 'family-city-school-dash', worldId: 'family-city', levelNumber: 3, isBoss: false,
+        title: 'School Dash', subtitle: "Bell's Ringing — Run!",
         difficulty: 'normal',
         description: 'Tight platforms above the neon city. One slip and you fall.',
         mechanics: ['basic', 'checkpoints', 'coins', 'traps'],
@@ -51,11 +51,11 @@ export const WORLD_REGISTRY: WorldDef[] = [
         parTimeMs: 110000, threeStarMs: 80000,
         completionReward: { coins: 40, xp: 70, unlocks: ['xanny'] },
         map: MAP_3,
-        nextLevelId: 'family-city-playroom-panic',
+        nextLevelId: 'family-city-neon-alley',
       },
       {
-        id: 'family-city-playroom-panic', worldId: 'world1', levelNumber: 4, isBoss: false,
-        title: 'Playroom Panic', subtitle: 'Toy Room Chaos',
+        id: 'family-city-neon-alley', worldId: 'family-city', levelNumber: 4, isBoss: false,
+        title: 'Neon Alley', subtitle: 'Night City Rush',
         difficulty: 'normal',
         description: 'The playroom is alive! Giant obstacles and bouncy chaos.',
         mechanics: ['basic', 'checkpoints', 'coins', 'traps'],
@@ -63,11 +63,11 @@ export const WORLD_REGISTRY: WorldDef[] = [
         parTimeMs: 115000, threeStarMs: 85000,
         completionReward: { coins: 40, xp: 75 },
         map: MAP_4,
-        nextLevelId: 'family-city-family-fortress',
+        nextLevelId: 'family-city-playground-panic',
       },
       {
-        id: 'family-city-family-fortress', worldId: 'world1', levelNumber: 5, isBoss: false,
-        title: 'Family Fortress', subtitle: 'Tactical Precision',
+        id: 'family-city-playground-panic', worldId: 'family-city', levelNumber: 5, isBoss: false,
+        title: 'Playground Panic', subtitle: 'Toy Room Chaos',
         difficulty: 'hard',
         description: "Commander's domain. Every jump counts. No mistakes.",
         mechanics: ['basic', 'checkpoints', 'coins', 'traps', 'character_shortcuts'],
@@ -75,11 +75,11 @@ export const WORLD_REGISTRY: WorldDef[] = [
         parTimeMs: 120000, threeStarMs: 90000,
         completionReward: { coins: 60, xp: 90 },
         map: MAP_5,
-        nextLevelId: 'family-city-governors-domain',
+        nextLevelId: 'family-city-boss-chaos-drone',
       },
       {
-        id: 'family-city-governors-domain', worldId: 'world1', levelNumber: 6, isBoss: true,
-        title: "Governor's Domain", subtitle: 'Legacy Arena — Final Challenge',
+        id: 'family-city-boss-chaos-drone', worldId: 'family-city', levelNumber: 6, isBoss: true,
+        title: 'Boss: Chaos Drone', subtitle: 'World 1 Final Boss',
         difficulty: 'expert',
         description: 'Only the elite finish. Tiny platforms, massive gaps. World 1 boss!',
         mechanics: ['basic', 'checkpoints', 'coins', 'traps', 'boss_chase'],
@@ -103,7 +103,7 @@ export const WORLD_REGISTRY: WorldDef[] = [
     accentColor: '#7c3aed',
     icon:        '🧪',
     mechanics:   ['moving_platforms', 'conveyors', 'gravity_pads', 'trap_overload'],
-    unlockReq:   'world1',
+    unlockReq:   'family-city',
     levels: [
       {
         id: 'w2_l1', worldId: 'world2', levelNumber: 1, isBoss: false,
