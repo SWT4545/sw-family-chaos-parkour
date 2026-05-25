@@ -6,6 +6,7 @@ export type GameScreen =
   | 'main-menu'
   | 'mode-select'
   | 'character-select'
+  | 'world-select'
   | 'level-select'
   | 'course-select'
   | 'course-victory'
