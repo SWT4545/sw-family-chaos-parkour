@@ -100,6 +100,8 @@ export const PlayerProfileService = {
     allCoins:        boolean
     isFirstClear:    boolean
     isBestTime:      boolean
+    starsEarned?:    0|1|2|3
+    nextLevelId?:    string
   }): Promise<{ coinsEarned: number; xpEarned: number; profile: PlayerProfile }> {
     const p = loadLocal()
     if (!p || p.playerId !== opts.playerId) throw new Error('Profile not loaded')
@@ -136,6 +138,26 @@ export const PlayerProfileService = {
     if (!prev || opts.timeMs < prev) {
       p.bestTimesByCourse[opts.levelId] = opts.timeMs
     }
+
+    // Stars — only upgrade, never downgrade
+    if (opts.starsEarned !== undefined) {
+      if (!p.starsByLevel) p.starsByLevel = {}
+      const existing = p.starsByLevel[opts.levelId] ?? 0
+      if (opts.starsEarned > existing) {
+        p.starsByLevel[opts.levelId] = opts.starsEarned
+      }
+    }
+
+    // Unlock next level in campaign chain
+    if (opts.nextLevelId) {
+      if (!p.unlockedLevels) p.unlockedLevels = []
+      if (!p.unlockedLevels.includes(opts.nextLevelId)) {
+        p.unlockedLevels.push(opts.nextLevelId)
+      }
+    }
+
+    // Track campaign progress
+    p.currentCampaignLevelId = opts.nextLevelId ?? opts.levelId
 
     await PlayerProfileService.save(p)
     return { coinsEarned: coins, xpEarned: xp, profile: p }

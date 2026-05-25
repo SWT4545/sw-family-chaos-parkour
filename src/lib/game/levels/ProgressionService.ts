@@ -3,16 +3,16 @@ import { WORLD_REGISTRY, getLevel } from './WorldRegistry'
 
 // ── Character unlock conditions ───────────────────────────────────────────────
 const CHARACTER_UNLOCK_LEVEL: Record<string, string> = {
-  bj:       'w1_l1',   // complete World 1 Level 1
-  brae:     'w1_l2',   // complete World 1 Level 2
-  xanny:    'w1_l3',   // complete World 1 Level 3
-  zaya:     'w1_boss', // complete World 1 Boss
-  governor: 'w2_boss', // complete World 2 Boss
+  bj:       'family-city-training-grounds',
+  brae:     'family-city-chaos-factory',
+  xanny:    'family-city-neon-skyline',
+  zaya:     'family-city-governors-domain',
+  governor: 'w2_boss',
 }
 
 // ── World unlock conditions ───────────────────────────────────────────────────
 const WORLD_UNLOCK_BOSS: Record<string, string> = {
-  world2: 'w1_boss',
+  world2: 'family-city-governors-domain',
   world3: 'w2_boss',
   world4: 'w3_boss',
   world5: 'w4_boss',
@@ -26,6 +26,9 @@ export interface CompletionResult {
   worldComplete:        boolean
   coinsEarned:          number
   xpEarned:             number
+  starsEarned:          0|1|2|3
+  isFirstClear:         boolean
+  nextLevelId?:         string
 }
 
 export const ProgressionService = {
@@ -37,14 +40,17 @@ export const ProgressionService = {
     timeMs: number,
     coinsCollected: number,
     difficulty: string,
+    deathCount = 0,
   ): Promise<CompletionResult> {
     const profile = PlayerProfileService.getCurrent()
-    if (!profile || profile.playerId !== playerId) {
-      return { newCharacterUnlocked: null, newWorldUnlocked: null, newCourseUnlocked: null, worldComplete: false, coinsEarned: 0, xpEarned: 0 }
+    const empty: CompletionResult = {
+      newCharacterUnlocked: null, newWorldUnlocked: null, newCourseUnlocked: null,
+      worldComplete: false, coinsEarned: 0, xpEarned: 0, starsEarned: 1, isFirstClear: false,
     }
+    if (!profile || profile.playerId !== playerId) return empty
 
     const level = getLevel(worldId, levelId)
-    if (!level) return { newCharacterUnlocked: null, newWorldUnlocked: null, newCourseUnlocked: null, worldComplete: false, coinsEarned: 0, xpEarned: 0 }
+    if (!level) return empty
 
     const alreadyCompleted = profile.completedLevels.includes(levelId)
     const firstCompKey     = `${levelId}_${difficulty}`
@@ -52,6 +58,14 @@ export const ProgressionService = {
 
     const prevBest   = profile.bestTimesByCourse[levelId]
     const isBestTime = !prevBest || timeMs < prevBest
+
+    // ── Star calculation ──
+    const totalCoinsOnMap = level.map.coinPositions?.length ?? 0
+    const allCoins = totalCoinsOnMap > 0 && coinsCollected >= totalCoinsOnMap
+    const noDeath  = deathCount === 0
+    let starsEarned: 0|1|2|3 = 1
+    if (timeMs <= level.threeStarMs || (allCoins && noDeath)) starsEarned = 3
+    else if (timeMs <= level.parTimeMs) starsEarned = 2
 
     // Record in profile
     const { coinsEarned, xpEarned } = await PlayerProfileService.recordLevelComplete({
@@ -61,9 +75,11 @@ export const ProgressionService = {
       timeMs,
       coinsCollected,
       perfect:      false,
-      allCoins:     false,
+      allCoins,
       isFirstClear,
       isBestTime,
+      starsEarned,
+      nextLevelId:  level.nextLevelId,
     })
 
     // Add level completion reward coins/xp
@@ -116,6 +132,9 @@ export const ProgressionService = {
       worldComplete,
       coinsEarned,
       xpEarned,
+      starsEarned,
+      isFirstClear,
+      nextLevelId: level.nextLevelId,
     }
   },
 

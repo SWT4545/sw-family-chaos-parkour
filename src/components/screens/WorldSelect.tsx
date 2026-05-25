@@ -33,6 +33,9 @@ export function WorldSelect({ onSelectLevel, onBack }: Props) {
   const isLevelUnlocked = (world: WorldDef, level: WorldLevelDef) => {
     if (!isWorldUnlocked(world)) return false
     if (level.levelNumber === 1) return true
+    // Check explicit unlock list first (set when previous level is completed)
+    if (profile?.unlockedLevels?.includes(level.id)) return true
+    // Fall back to previous-level-completed chain
     const prev = world.levels.find(l => l.levelNumber === level.levelNumber - 1)
     if (!prev) return true
     return profile?.completedLevels.includes(prev.id) ?? false

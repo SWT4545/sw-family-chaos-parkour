@@ -59,6 +59,11 @@ export interface PlayerProfile {
   // Best times per course (seconds)
   bestTimesByCourse: Record<string, number>
 
+  // Campaign progress
+  unlockedLevels:         string[]                    // explicitly unlocked level IDs
+  starsByLevel:           Record<string, 0|1|2|3>     // stars earned per level
+  currentCampaignLevelId?: string                     // for "Continue Campaign"
+
   // Cosmetics
   ownedCosmetics:    string[]
   equippedCosmetics: EquippedCosmetics
@@ -141,6 +146,8 @@ export function defaultProfile(playerId: string, displayName: string, characterI
     firstCompletions:    [],
     worldProgress:       {},
     bestTimesByCourse:   {},
+    unlockedLevels:      ['family-city-training-grounds'],
+    starsByLevel:        {},
     ownedCosmetics:      ['trail_default', 'border_default', 'pose_default', 'emote_gg'],
     equippedCosmetics:   { ...DEFAULT_EQUIPPED },
     ownedMusicTracks:    [],

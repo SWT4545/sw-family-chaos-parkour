@@ -31,6 +31,7 @@ import type { CharacterRenderMode } from '@/lib/game/rendering/CharacterRenderMo
 import { defaultGameRenderState } from '@/lib/game/rendering/GameRenderState'
 import { VictoryScreen } from '@/components/screens/VictoryScreen'
 import { SoloVictoryScreen } from '@/components/screens/SoloVictoryScreen'
+import { GameOverScreen } from '@/components/screens/GameOverScreen'
 import { Leaderboard } from '@/components/screens/Leaderboard'
 import { SettingsPanel } from '@/components/settings/SettingsPanel'
 import { DailyChallengesPanel } from '@/components/screens/DailyChallenges'
@@ -63,6 +64,14 @@ const slide = {
   transition: { duration: 0.22, ease: 'easeInOut' as const },
 }
 
+const LIVES_BY_DIFFICULTY: Record<string, number | undefined> = {
+  starter: undefined,  // Training Grounds — unlimited
+  normal:  4,
+  hard:    3,
+  expert:  2,
+  chaos:   1,
+}
+
 interface VictoryData {
   winnerId: 1 | 2
   time:     number
@@ -83,6 +92,16 @@ export default function Home() {
   // Coin/XP earned in last session (for victory screen breakdown)
   const [lastSessionCoins, setLastSessionCoins] = useState(0)
   const [lastSessionXp,    setLastSessionXp]    = useState(0)
+
+  // Solo campaign result (stars, next level, unlocks)
+  const [soloResult, setSoloResult] = useState<{
+    starsEarned:   0|1|2|3
+    coinsEarned:   number
+    xpEarned:      number
+    isFirstClear:  boolean
+    nextLevel?:    { id: string; title: string; subtitle: string }
+    unlockedItems?: string[]
+  } | null>(null)
 
   // Course mode state
   const [selectedCourse,     setSelectedCourse]     = useState<CourseDef | null>(null)
@@ -211,6 +230,7 @@ export default function Home() {
     winnerId: 1 | 2,
     time: number,
     coins: { p1: number; p2: number },
+    extra?: { soloDeaths?: number },
   ) => {
     setVictoryData({ winnerId, time, coins })
 
@@ -235,6 +255,7 @@ export default function Home() {
 
       // World level completion (if coming from WorldSelect)
       if (selectedWorldLevel && selectedWorldDef) {
+        const deathCount = extra?.soloDeaths ?? 0
         ProgressionService.processLevelComplete(
           profile.playerId,
           selectedWorldDef.id,
@@ -242,9 +263,29 @@ export default function Home() {
           time * 1000,
           boostedCoins,
           selectedWorldLevel.difficulty,
+          deathCount,
         ).then(result => {
           setLastSessionCoins(result.coinsEarned)
           setLastSessionXp(result.xpEarned)
+
+          // Find next level display info within the same world
+          const nextWL = selectedWorldDef.levels.find(l => l.id === result.nextLevelId)
+          const nextLevelDisplay = nextWL
+            ? { id: nextWL.id, title: nextWL.title, subtitle: nextWL.subtitle }
+            : undefined
+
+          const unlockedItems: string[] = []
+          if (result.newCharacterUnlocked) unlockedItems.push(result.newCharacterUnlocked)
+          if (result.newWorldUnlocked) unlockedItems.push(`World ${result.newWorldUnlocked.slice(-1)}`)
+
+          setSoloResult({
+            starsEarned:   result.starsEarned,
+            coinsEarned:   result.coinsEarned,
+            xpEarned:      result.xpEarned,
+            isFirstClear:  result.isFirstClear,
+            nextLevel:     nextLevelDisplay,
+            unlockedItems: unlockedItems.length > 0 ? unlockedItems : undefined,
+          })
           syncProfileToLeaderboards(profile.playerId)
         })
       } else {
@@ -332,10 +373,41 @@ export default function Home() {
       return
     }
 
+    // Fallback soloResult for non-world legacy levels
+    if (gameMode === 'solo' && !selectedWorldLevel) {
+      setSoloResult({
+        starsEarned: 1,
+        coinsEarned: coins.p1,
+        xpEarned: 50,
+        isFirstClear: false,
+      })
+    }
+
     setScreen(gameMode === 'solo' ? 'solo-victory' : 'victory')
-  }, [gameMode, player1, player2, selectedLevel, selectedCourse, selectedDifficulty, courseProgression])
+  }, [gameMode, player1, player2, selectedLevel, selectedCourse, selectedDifficulty, courseProgression, selectedWorldLevel, selectedWorldDef])
 
   function startNewGame() {
+    chaosRef.current = defaultChaosState()
+    setMatchStart(Date.now())
+    setScreen('game')
+  }
+
+  function handleNextLevel() {
+    if (!soloResult?.nextLevel || !selectedWorldDef) return
+    const nextWL = selectedWorldDef.levels.find(l => l.id === soloResult!.nextLevel!.id)
+    if (!nextWL) return
+    setSelectedWorldLevel(nextWL)
+    setSelectedLevel({
+      id:            nextWL.id,
+      name:          nextWL.title,
+      subtitle:      nextWL.subtitle,
+      difficulty:    nextWL.difficulty as never,
+      difficultyNum: nextWL.levelNumber,
+      description:   nextWL.description,
+      unlockReward:  nextWL.completionReward.unlocks?.join(', ') ?? '',
+      map:           nextWL.map,
+    })
+    setSoloResult(null)
     chaosRef.current = defaultChaosState()
     setMatchStart(Date.now())
     setScreen('game')
@@ -602,6 +674,10 @@ export default function Home() {
                 onTickSync={gameMode === 'online' ? publishState : undefined}
                 onFinishSync={gameMode === 'online' ? publishStateNow : undefined}
                 gameRenderRef={renderMode === 'threePrimitive' ? gameRenderRef : undefined}
+                soloLives={gameMode === 'solo' && selectedWorldLevel
+                  ? LIVES_BY_DIFFICULTY[selectedWorldLevel.difficulty]
+                  : undefined}
+                onGameOver={() => setScreen('game-over')}
               />
               {renderMode === 'threePrimitive' && (
                 <ThreeCharacterLayer gameRenderRef={gameRenderRef} />
@@ -691,14 +767,35 @@ export default function Home() {
         )}
 
         {/* ── Solo Victory ── */}
-        {screen === 'solo-victory' && victoryData && player1 && (
+        {screen === 'solo-victory' && victoryData && player1 && soloResult && (
           <motion.div key="solo-victory" {...slide}>
             <SoloVictoryScreen
               player={player1}
               time={victoryData.time}
               coins={victoryData.coins.p1}
+              starsEarned={soloResult.starsEarned}
+              coinsEarned={soloResult.coinsEarned}
+              xpEarned={soloResult.xpEarned}
+              isFirstClear={soloResult.isFirstClear}
+              nextLevel={soloResult.nextLevel}
+              unlockedItems={soloResult.unlockedItems}
               onPlayAgain={() => { chaosRef.current = defaultChaosState(); setMatchStart(Date.now()); setScreen('game') }}
-              onBackToMenu={() => setScreen('main-menu')}
+              onNextLevel={soloResult.nextLevel ? handleNextLevel : undefined}
+              onWorldMap={() => setScreen('world-select')}
+            />
+          </motion.div>
+        )}
+
+        {/* ── Game Over ── */}
+        {screen === 'game-over' && player1 && (
+          <motion.div key="game-over" {...slide}>
+            <GameOverScreen
+              player={player1}
+              levelTitle={selectedWorldLevel?.title ?? selectedLevel.name}
+              livesUsed={selectedWorldLevel ? (LIVES_BY_DIFFICULTY[selectedWorldLevel.difficulty] ?? 0) : 0}
+              onRetry={() => { setSoloResult(null); chaosRef.current = defaultChaosState(); setMatchStart(Date.now()); setScreen('game') }}
+              onWorldMap={() => setScreen('world-select')}
+              onMainMenu={() => setScreen('main-menu')}
             />
           </motion.div>
         )}

@@ -20,6 +20,7 @@ export type GameScreen =
   | 'solo-victory'
   | 'leaderboard'
   | 'daily-challenges'
+  | 'game-over'
 
 export interface Character {
   id:           CharacterId

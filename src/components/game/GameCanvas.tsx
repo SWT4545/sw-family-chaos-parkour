@@ -131,22 +131,26 @@ interface Props {
   player2:         Character | null
   matchStartTime:  number
   mode:            'solo' | '1v1' | 'online'
-  onVictory:       (winner: 1 | 2, time: number, coins: { p1: number; p2: number }) => void
+  onVictory:       (winner: 1 | 2, time: number, coins: { p1: number; p2: number }, extra?: { soloDeaths?: number }) => void
   chaosRef:        MutableRefObject<ChaosState>
   remoteGhosts?:   RemoteGhost[]
   onTickSync?:     (state: PlayerSyncState) => void
   onFinishSync?:   (state: PlayerSyncState) => void
   map?:            MapDef
   gameRenderRef?:  MutableRefObject<GameRenderState>
+  soloLives?:      number           // enables lives system for solo campaign
+  onGameOver?:     () => void       // called when lives hit 0
 }
 
-export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, chaosRef, remoteGhosts, onTickSync, onFinishSync, map, gameRenderRef }: Props) {
+export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, chaosRef, remoteGhosts, onTickSync, onFinishSync, map, gameRenderRef, soloLives, onGameOver }: Props) {
   const canvasRef        = useRef<HTMLCanvasElement>(null)
   const onVictoryRef     = useRef(onVictory)
+  const onGameOverRef    = useRef(onGameOver)
   const remoteGhostsRef  = useRef<RemoteGhost[]>(remoteGhosts ?? [])
   const onTickSyncRef    = useRef(onTickSync)
   const onFinishSyncRef  = useRef(onFinishSync)
   useEffect(() => { onVictoryRef.current    = onVictory },       [onVictory])
+  useEffect(() => { onGameOverRef.current   = onGameOver },      [onGameOver])
   useEffect(() => { remoteGhostsRef.current = remoteGhosts ?? [] }, [remoteGhosts])
   useEffect(() => { onTickSyncRef.current   = onTickSync },      [onTickSync])
   useEffect(() => { onFinishSyncRef.current = onFinishSync },    [onFinishSync])
@@ -247,6 +251,10 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
     let gameOver = false
     let camX = 0, camY = 0
     let lastT = performance.now()
+
+    // ── Lives system (solo campaign only) ─────────────────────────
+    let soloDeaths = 0
+    let livesLeft  = soloLives ?? Infinity
 
     // ── Animation state ───────────────────────────────────────────
     let p1Anim = 0, p2Anim = 0
@@ -1582,7 +1590,18 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       p1CP = checkCPs(p1Body, p1CP, 1)
       if (p2Body) p2CP = checkCPs(p2Body, p2CP, 2)
 
-      if (p1Body.position.y > deathY) respawn(p1Body, p1CP, 1, p1Gnd)
+      if (p1Body.position.y > deathY) {
+        if (mode === 'solo' && soloLives !== undefined) {
+          soloDeaths++
+          livesLeft--
+          if (livesLeft <= 0) {
+            gameOver = true
+            onGameOverRef.current?.()
+            return
+          }
+        }
+        respawn(p1Body, p1CP, 1, p1Gnd)
+      }
       if (p2Body && p2Body.position.y > deathY) respawn(p2Body, p2CP, 2, p2Gnd)
 
       checkTrapCollisions(nowMs)
@@ -1612,7 +1631,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
         }
         gameOver = true; SFX.victory()
         trackEvent('match_finished', { winner: 1, reason: 'finish', time: elapsed })
-        onVictoryRef.current(1, elapsed, { p1: p1Coins, p2: p2Coins }); return
+        onVictoryRef.current(1, elapsed, { p1: p1Coins, p2: p2Coins }, { soloDeaths }); return
       }
       if (p2Body && atFinish(p2Body)) {
         gameOver = true; SFX.victory()
@@ -1751,6 +1770,20 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
 
       // Screen-space overlays (no camera offset)
       drawEffectOverlays(nowMs)
+
+      // Lives HUD (solo campaign)
+      if (mode === 'solo' && soloLives !== undefined && isFinite(livesLeft)) {
+        ctx.save()
+        ctx.font = 'bold 13px system-ui, sans-serif'
+        ctx.textAlign = 'left'
+        ctx.textBaseline = 'middle'
+        const hearts = Math.max(0, livesLeft)
+        for (let i = 0; i < Math.min(hearts, 6); i++) {
+          ctx.fillStyle = i < hearts ? '#ef4444' : 'rgba(255,255,255,0.15)'
+          ctx.beginPath(); ctx.arc(18 + i * 22, 18, 8, 0, Math.PI * 2); ctx.fill()
+        }
+        ctx.restore()
+      }
 
       // Online sync tick — publish position every ~9 frames (≈150ms at 60fps)
       syncTickCounter++

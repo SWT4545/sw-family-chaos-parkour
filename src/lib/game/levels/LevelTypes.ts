@@ -34,8 +34,9 @@ export interface WorldLevelDef {
     unlocks?:    string[]     // characterId, worldId, cosmeticId
   }
   map:           MapDef
-  // Optional coming-soon flag for levels not yet fully designed
   comingSoon?:   boolean
+  nextLevelId?:  string       // next level in the campaign chain (same or next world)
+  nextWorldId?:  string       // world unlocked by completing this level (boss levels)
 }
 
 export interface WorldDef {
