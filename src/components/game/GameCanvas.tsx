@@ -131,7 +131,7 @@ interface Props {
   player2:         Character | null
   matchStartTime:  number
   mode:            'solo' | '1v1' | 'online'
-  onVictory:       (winner: 1 | 2, time: number, coins: { p1: number; p2: number }, extra?: { soloDeaths?: number }) => void
+  onVictory:       (winner: 1 | 2, time: number, coins: { p1: number; p2: number }, extra?: { soloDeaths?: number; p1TrapHits?: number }) => void
   chaosRef:        MutableRefObject<ChaosState>
   remoteGhosts?:   RemoteGhost[]
   onTickSync?:     (state: PlayerSyncState) => void
@@ -253,8 +253,9 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
     let lastT = performance.now()
 
     // ── Lives system (solo campaign only) ─────────────────────────
-    let soloDeaths = 0
-    let livesLeft  = soloLives ?? Infinity
+    let soloDeaths  = 0
+    let livesLeft   = soloLives ?? Infinity
+    let p1TrapHits  = 0
 
     // ── Animation state ───────────────────────────────────────────
     let p1Anim = 0, p2Anim = 0
@@ -504,8 +505,8 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
           // Apply effect
           if (def.effectType !== 'visual') {
             const effect: EffectState = { type: trap.trapId, endsAt: now + def.duration * 1000 }
-            if (pid === 1) p1TrapEffect = effect
-            else           p2TrapEffect = effect
+            if (pid === 1) { p1TrapEffect = effect; p1TrapHits++ }
+            else           { p2TrapEffect = effect }
 
             // Sound + particles per type
             if (def.effectType === 'slip')   { SFX.slip();   particles.push(...burst(x, y, '#fbbf24', 14)) }
@@ -594,7 +595,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
     }
 
     // ── Coin collision ────────────────────────────────────────────
-    const COIN_R = 18
+    // Use box collision (more forgiving on mobile) instead of a tiny circle
     function checkCoinCollisions() {
       for (const coin of coinsOnMap) {
         if (coin.collected) continue
@@ -603,9 +604,13 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
           ...(p2Body ? [{ body: p2Body, pid: 2 as const }] : []),
         ]
         for (const { body, pid } of targets) {
-          const dx = body.position.x - coin.x
-          const dy = body.position.y - coin.y
-          if (dx * dx + dy * dy < COIN_R * COIN_R) {
+          // Box collision — more reliable than tiny circle, especially on mobile
+          const REACH_X = PLAYER_W / 2 + 18
+          const REACH_Y = PLAYER_H / 2 + 14
+          if (
+            Math.abs(body.position.x - coin.x) < REACH_X &&
+            Math.abs(body.position.y - coin.y) < REACH_Y
+          ) {
             coin.collected = true
             if (pid === 1) p1Coins++
             else           p2Coins++
@@ -1471,6 +1476,9 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
         tacoRainActive,
         p1Coins,
         p2Coins,
+        p1Lives:    soloLives !== undefined && isFinite(livesLeft) ? Math.max(0, livesLeft) : undefined,
+        p1Deaths:   soloDeaths > 0 ? soloDeaths : undefined,
+        p1TrapHits: p1TrapHits > 0 ? p1TrapHits : undefined,
       }
     }
 
@@ -1631,7 +1639,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
         }
         gameOver = true; SFX.victory()
         trackEvent('match_finished', { winner: 1, reason: 'finish', time: elapsed })
-        onVictoryRef.current(1, elapsed, { p1: p1Coins, p2: p2Coins }, { soloDeaths }); return
+        onVictoryRef.current(1, elapsed, { p1: p1Coins, p2: p2Coins }, { soloDeaths, p1TrapHits }); return
       }
       if (p2Body && atFinish(p2Body)) {
         gameOver = true; SFX.victory()
@@ -1770,20 +1778,6 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
 
       // Screen-space overlays (no camera offset)
       drawEffectOverlays(nowMs)
-
-      // Lives HUD (solo campaign)
-      if (mode === 'solo' && soloLives !== undefined && isFinite(livesLeft)) {
-        ctx.save()
-        ctx.font = 'bold 13px system-ui, sans-serif'
-        ctx.textAlign = 'left'
-        ctx.textBaseline = 'middle'
-        const hearts = Math.max(0, livesLeft)
-        for (let i = 0; i < Math.min(hearts, 6); i++) {
-          ctx.fillStyle = i < hearts ? '#ef4444' : 'rgba(255,255,255,0.15)'
-          ctx.beginPath(); ctx.arc(18 + i * 22, 18, 8, 0, Math.PI * 2); ctx.fill()
-        }
-        ctx.restore()
-      }
 
       // Online sync tick — publish position every ~9 frames (≈150ms at 60fps)
       syncTickCounter++

@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { RotateCcw, Home, Map, ArrowRight, Star } from 'lucide-react'
 import { Character } from '@/types/player'
+import type { ScoreBreakdown } from '@/lib/game/scoring/ScoreTypes'
 
 const MATCH_SECS = 8 * 60
 
@@ -28,6 +29,8 @@ interface Props {
   isFirstClear:     boolean
   nextLevel?:       { id: string; title: string; subtitle: string }
   unlockedItems?:   string[]         // character/world unlocked names
+  scoreBreakdown?:  ScoreBreakdown
+  deaths?:          number
   onPlayAgain:      () => void
   onNextLevel?:     () => void
   onWorldMap:       () => void
@@ -63,7 +66,8 @@ function StarRow({ stars, color }: { stars: 0|1|2|3; color: string }) {
 
 export function SoloVictoryScreen({
   player, time, coins, starsEarned, coinsEarned, xpEarned,
-  isFirstClear, nextLevel, unlockedItems, onPlayAgain, onNextLevel, onWorldMap,
+  isFirstClear, nextLevel, unlockedItems, scoreBreakdown, deaths,
+  onPlayAgain, onNextLevel, onWorldMap,
 }: Props) {
   const didFinish = time < MATCH_SECS - 0.5
   const col       = player.color
@@ -238,6 +242,48 @@ export function SoloVictoryScreen({
             </div>
           )}
         </motion.div>
+
+        {/* Score breakdown */}
+        {scoreBreakdown && (
+          <motion.div className="mx-4 mb-2 rounded-2xl overflow-hidden"
+            style={{ background: 'rgba(0,0,0,0.74)', border: '1px solid rgba(255,255,255,0.09)', backdropFilter: 'blur(12px)' }}
+            initial={{ opacity: 0, y: 32 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.78 }}>
+            {/* Final score */}
+            <div className="flex items-center justify-between px-4 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <span className="text-[10px] font-black uppercase tracking-widest text-white">Score</span>
+              <span className="text-lg font-black tabular-nums" style={{ color: col }}>
+                {scoreBreakdown.finalScore.toLocaleString()}
+              </span>
+            </div>
+            {/* Breakdown rows */}
+            <div className="px-4 py-2 flex flex-col gap-0.5">
+              {[
+                { label: 'Completion',    val: scoreBreakdown.basePoints,       positive: true },
+                { label: 'Coins',         val: scoreBreakdown.coinPoints,       positive: true },
+                { label: 'Time Bonus',    val: scoreBreakdown.timeBonus,        positive: true },
+                { label: 'No Deaths',     val: scoreBreakdown.noDeathBonus,     positive: true },
+                { label: 'All Coins',     val: scoreBreakdown.allCoinsBonus,    positive: true },
+                { label: 'New Best Time', val: scoreBreakdown.newBestTimeBonus, positive: true },
+                { label: 'Deaths',        val: -scoreBreakdown.deathPenalty,    positive: false },
+                { label: 'Trap Hits',     val: -scoreBreakdown.trapHitPenalty,  positive: false },
+              ].filter(r => r.val !== 0).map(row => (
+                <div key={row.label} className="flex items-center justify-between">
+                  <span className="text-[9px] text-gray-500 uppercase tracking-wider">{row.label}</span>
+                  <span className="text-[10px] font-bold tabular-nums" style={{ color: row.positive ? '#4ade80' : '#f87171' }}>
+                    {row.val > 0 ? `+${row.val.toLocaleString()}` : row.val.toLocaleString()}
+                  </span>
+                </div>
+              ))}
+              {scoreBreakdown.difficultyMult !== 1.0 && (
+                <div className="flex items-center justify-between mt-0.5">
+                  <span className="text-[9px] text-gray-500 uppercase tracking-wider">Difficulty</span>
+                  <span className="text-[10px] font-black" style={{ color: col }}>×{scoreBreakdown.difficultyMult.toFixed(2)}</span>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
 
         {/* Buttons */}
         <motion.div className="flex flex-col gap-2 px-4"

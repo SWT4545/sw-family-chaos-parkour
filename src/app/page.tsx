@@ -18,6 +18,11 @@ import { ShopService } from '@/lib/game/shop/ShopService'
 import { CHARACTERS } from '@/lib/game/characters/characters'
 import { WORLD_REGISTRY, getAllLevels } from '@/lib/game/levels/WorldRegistry'
 import { useGameSync } from '@/hooks/useGameSync'
+import { useRaceSync } from '@/hooks/useRaceSync'
+import { RaceCountdown } from '@/components/online/RaceCountdown'
+import { RaceResults } from '@/components/online/RaceResults'
+import { subscribeToRoom } from '@/lib/firebase/rooms'
+import type { RaceResult } from '@/types/room'
 import { MainMenu } from '@/components/MainMenu'
 import { ModeSelect } from '@/components/screens/ModeSelect'
 import { CharacterSelect } from '@/components/characters/CharacterSelect'
@@ -56,6 +61,8 @@ import type { RoomPlayer } from '@/types/room'
 import { ChaosState, defaultChaosState } from '@/types/chaos'
 import type { CourseProgressionState } from '@/lib/profiles/CourseProgression'
 import { submitLeaderboardScore } from '@/lib/firebase/leaderboards'
+import { ScoreService } from '@/lib/game/scoring/ScoreService'
+import type { ScoreBreakdown } from '@/lib/game/scoring/ScoreTypes'
 import type { WorldDef, WorldLevelDef } from '@/lib/game/levels/LevelTypes'
 
 const slide = {
@@ -94,14 +101,16 @@ export default function Home() {
   const [lastSessionCoins, setLastSessionCoins] = useState(0)
   const [lastSessionXp,    setLastSessionXp]    = useState(0)
 
-  // Solo campaign result (stars, next level, unlocks)
+  // Solo campaign result (stars, next level, unlocks, score)
   const [soloResult, setSoloResult] = useState<{
-    starsEarned:   0|1|2|3
-    coinsEarned:   number
-    xpEarned:      number
-    isFirstClear:  boolean
-    nextLevel?:    { id: string; title: string; subtitle: string }
+    starsEarned:    0|1|2|3
+    coinsEarned:    number
+    xpEarned:       number
+    isFirstClear:   boolean
+    nextLevel?:     { id: string; title: string; subtitle: string }
     unlockedItems?: string[]
+    deaths?:        number
+    scoreBreakdown?: ScoreBreakdown
   } | null>(null)
 
   // Course mode state
@@ -122,6 +131,28 @@ export default function Home() {
   const [onlinePlayers,   setOnlinePlayers]   = useState<RoomPlayer[]>([])
   const [playerName,      setPlayerName]      = useState('Player')
   const [onlineAction,    setOnlineAction]    = useState<'create' | 'join'>('create')
+
+  // Race state
+  const [raceCountdownStart,  setRaceCountdownStart]  = useState(0)
+  const [raceResults,         setRaceResults]         = useState<RaceResult[]>([])
+  const [onlineRaceFinished,  setOnlineRaceFinished]  = useState(false)
+
+  // Room status watcher during race — handles results transition for all players
+  useEffect(() => {
+    if (!roomCode || gameMode !== 'online') return
+    if (screen !== 'game' && screen !== 'race-countdown') return
+    const unsub = subscribeToRoom(
+      roomCode,
+      (room) => {
+        if (room?.status === 'results' && room.raceResults) {
+          setRaceResults(room.raceResults)
+          setScreen('race-results')
+        }
+      },
+      () => {},
+    )
+    return () => unsub()
+  }, [roomCode, gameMode, screen])
 
   const [returnScreenAfterChar, setReturnScreenAfterChar] = useState<'world-select' | 'lobby'>('world-select')
   const [campaignLevelName, setCampaignLevelName] = useState<string | undefined>(undefined)
@@ -164,14 +195,32 @@ export default function Home() {
     return m
   }, [])
 
-  // Online game sync (active only during online game)
+  // Non-online game sync (1v1 / solo — roomCode is null so it's a no-op)
   const remotePlayers = onlinePlayers.filter(p => p.id !== localSessionId)
-  const { remoteGhosts, publishState, publishStateNow } = useGameSync(
-    gameMode === 'online' && screen === 'game' ? roomCode : null,
+  const { remoteGhosts: legacyGhosts, publishState: legacyPublishState, publishStateNow: legacyPublishStateNow } = useGameSync(
+    gameMode !== 'online' ? null : null,
     localSessionId,
     remotePlayers,
     characterMap,
   )
+
+  // Online race sync (active only during online game)
+  const localIsHost = onlinePlayers.find(p => p.id === localSessionId)?.isHost ?? false
+  const raceFinishX = selectedLevel.map.finishX ?? 4200
+  const { remoteGhosts: raceGhosts, raceProgress, publishState: racePublishState, publishStateNow: racePublishStateNow } = useRaceSync({
+    roomCode:         gameMode === 'online' && screen === 'game' ? roomCode : null,
+    localPlayerId:    localSessionId,
+    allPlayers:       onlinePlayers,
+    characterMap,
+    isHost:           localIsHost,
+    finishX:          raceFinishX,
+    countdownStartAt: raceCountdownStart,
+  })
+
+  // Unify sync refs for game use
+  const remoteGhosts   = gameMode === 'online' ? raceGhosts       : legacyGhosts
+  const publishState   = gameMode === 'online' ? racePublishState  : legacyPublishState
+  const publishStateNow = gameMode === 'online' ? racePublishStateNow : legacyPublishStateNow
 
   // ── Phase 9 bootstrap ────────────────────────────────────────────
   useEffect(() => {
@@ -270,7 +319,7 @@ export default function Home() {
     winnerId: 1 | 2,
     time: number,
     coins: { p1: number; p2: number },
-    extra?: { soloDeaths?: number },
+    extra?: { soloDeaths?: number; p1TrapHits?: number },
   ) => {
     setVictoryData({ winnerId, time, coins })
 
@@ -295,7 +344,26 @@ export default function Home() {
 
       // World level completion (if coming from WorldSelect)
       if (selectedWorldLevel && selectedWorldDef) {
-        const deathCount = extra?.soloDeaths ?? 0
+        const deathCount   = extra?.soloDeaths    ?? 0
+        const trapHitCount = extra?.p1TrapHits    ?? 0
+
+        // Compute isBestTime before profile is mutated by processLevelComplete
+        const prevBest  = profile.bestTimesByCourse[selectedWorldLevel.id]
+        const isBestTime = !prevBest || time * 1000 < prevBest
+
+        // Calculate score up-front (parTimeMs available on WorldLevelDef)
+        const totalCoinsOnMap = selectedWorldLevel.map.coinPositions?.length ?? 0
+        const bd = ScoreService.calculate({
+          difficulty:     selectedWorldLevel.difficulty,
+          finishTimeMs:   time * 1000,
+          parTimeMs:      selectedWorldLevel.parTimeMs,
+          coinsCollected: coins.p1,
+          totalCoins:     totalCoinsOnMap,
+          deaths:         deathCount,
+          trapHits:       trapHitCount,
+          isBestTime,
+        })
+
         ProgressionService.processLevelComplete(
           profile.playerId,
           selectedWorldDef.id,
@@ -318,14 +386,38 @@ export default function Home() {
           if (result.newCharacterUnlocked) unlockedItems.push(result.newCharacterUnlocked)
           if (result.newWorldUnlocked) unlockedItems.push(`World ${result.newWorldUnlocked.slice(-1)}`)
 
-          setSoloResult({
-            starsEarned:   result.starsEarned,
-            coinsEarned:   result.coinsEarned,
-            xpEarned:      result.xpEarned,
-            isFirstClear:  result.isFirstClear,
-            nextLevel:     nextLevelDisplay,
-            unlockedItems: unlockedItems.length > 0 ? unlockedItems : undefined,
+          // Submit rich leaderboard entry
+          submitLeaderboardScore({
+            playerId:            profile.playerId,
+            playerName:          player1!.name,
+            characterId:         player1!.id,
+            score:               bd.finalScore,
+            category:            'level-score',
+            updatedAt:           Date.now(),
+            levelId:             selectedWorldLevel.id,
+            worldId:             selectedWorldDef.id,
+            difficulty:          selectedWorldLevel.difficulty,
+            finishTimeMs:        time * 1000,
+            finalScore:          bd.finalScore,
+            coinsCollected:      coins.p1,
+            totalCoinsAvailable: totalCoinsOnMap,
+            deaths:              deathCount,
+            trapHits:            trapHitCount,
+            starsEarned:         result.starsEarned,
           })
+
+          // Set soloResult and screen together so the victory screen never renders blank
+          setSoloResult({
+            starsEarned:    result.starsEarned,
+            coinsEarned:    result.coinsEarned,
+            xpEarned:       result.xpEarned,
+            isFirstClear:   result.isFirstClear,
+            nextLevel:      nextLevelDisplay,
+            unlockedItems:  unlockedItems.length > 0 ? unlockedItems : undefined,
+            deaths:         deathCount,
+            scoreBreakdown: bd,
+          })
+          setScreen('solo-victory')
           syncProfileToLeaderboards(profile.playerId)
         })
       } else {
@@ -413,7 +505,7 @@ export default function Home() {
       return
     }
 
-    // Fallback soloResult for non-world legacy levels
+    // Fallback soloResult for non-world legacy levels (sync path — screen set below)
     if (gameMode === 'solo' && !selectedWorldLevel) {
       setSoloResult({
         starsEarned: 1,
@@ -423,6 +515,9 @@ export default function Home() {
       })
     }
 
+    // WorldLevel path sets screen inside the async .then() — skip here to prevent blank render
+    if (gameMode === 'solo' && selectedWorldLevel && selectedWorldDef) return
+    if (gameMode === 'online') { setOnlineRaceFinished(true); return }
     setScreen(gameMode === 'solo' ? 'solo-victory' : 'victory')
   }, [gameMode, player1, player2, selectedLevel, selectedCourse, selectedDifficulty, courseProgression, selectedWorldLevel, selectedWorldDef])
 
@@ -658,9 +753,69 @@ export default function Home() {
             <OnlineLobby
               roomCode={roomCode}
               localPlayerId={localSessionId}
-              onMatchStart={(mapId) => { setSelectedLevel(getLevelById(mapId)); startNewGame() }}
+              onCountdownStarted={(startAt, levelId, worldId) => {
+                const world = WORLD_REGISTRY.find(w => w.id === worldId)
+                const lvl   = world?.levels.find(l => l.id === levelId)
+                if (world && lvl) {
+                  setSelectedWorldDef(world)
+                  setSelectedWorldLevel(lvl)
+                  setSelectedLevel({
+                    id:           lvl.id,
+                    name:         lvl.title,
+                    subtitle:     lvl.subtitle,
+                    difficulty:   lvl.difficulty as never,
+                    difficultyNum: lvl.levelNumber,
+                    description:  lvl.description,
+                    unlockReward: '',
+                    map:          lvl.map,
+                  })
+                }
+                setRaceCountdownStart(startAt)
+                setOnlineRaceFinished(false)
+                setScreen('race-countdown')
+              }}
               onLeave={() => { setRoomCode(null); setLocalSessionId(null); setOnlinePlayers([]); setScreen('online-gateway') }}
               onPlayersChange={setOnlinePlayers}
+            />
+          </motion.div>
+        )}
+
+        {/* ── Race Countdown ── */}
+        {screen === 'race-countdown' && (
+          <motion.div key="race-countdown" {...slide}>
+            <RaceCountdown
+              countdownStartAt={raceCountdownStart}
+              levelName={selectedWorldLevel?.title ?? selectedLevel.name}
+              playerCount={onlinePlayers.length}
+              onGo={() => {
+                chaosRef.current = defaultChaosState()
+                setMatchStart(Date.now())
+                setScreen('game')
+              }}
+            />
+          </motion.div>
+        )}
+
+        {/* ── Race Results ── */}
+        {screen === 'race-results' && (
+          <motion.div key="race-results" {...slide}>
+            <RaceResults
+              results={raceResults}
+              localPlayerId={localSessionId ?? ''}
+              isHost={onlinePlayers.find(p => p.id === localSessionId)?.isHost ?? false}
+              onRaceAgain={() => {
+                setRaceResults([])
+                setOnlineRaceFinished(false)
+                setScreen('online-lobby')
+              }}
+              onBackToMenu={() => {
+                setRoomCode(null)
+                setLocalSessionId(null)
+                setOnlinePlayers([])
+                setRaceResults([])
+                setOnlineRaceFinished(false)
+                setScreen('main-menu')
+              }}
             />
           </motion.div>
         )}
@@ -689,17 +844,34 @@ export default function Home() {
               height: '100dvh',
               background: '#060610',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              flexDirection: 'column',
               overflow: 'hidden',
             }}
           >
-            {/* Canvas box — fills width on portrait, fills height on landscape */}
+            {/* HUD — sits above gameplay in normal document flow */}
+            <div style={{ flexShrink: 0, zIndex: 30 }}>
+              <GameHUD
+                player1={player1}
+                player2={gameMode === 'solo' ? null : player2}
+                matchStartTime={matchStart}
+                chaosRef={chaosRef}
+                mode={gameMode === 'solo' ? 'solo' : gameMode === 'online' ? 'online' : '1v1'}
+                levelName={selectedWorldLevel?.title ?? selectedLevel.name}
+                soloLives={gameMode === 'solo' && selectedWorldLevel
+                  ? LIVES_BY_DIFFICULTY[selectedWorldLevel.difficulty]
+                  : undefined}
+                raceProgress={gameMode === 'online' ? raceProgress : undefined}
+              />
+            </div>
+
+            {/* Canvas area — fills remaining height after HUD */}
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+            {/* Canvas box — aspect-ratio preserved within available space */}
             <div
               style={{
                 position: 'relative',
-                width:  'min(100vw, calc(100dvh * 16 / 9))',
-                height: 'min(100dvh, calc(100vw * 9 / 16))',
+                width:  'min(100vw, calc((100dvh - 60px) * 16 / 9))',
+                height: 'min(calc(100dvh - 60px), calc(100vw * 9 / 16))',
                 maxWidth: '960px',
                 maxHeight: '540px',
               }}
@@ -724,16 +896,21 @@ export default function Home() {
               {renderMode === 'threePrimitive' && (
                 <ThreeCharacterLayer gameRenderRef={gameRenderRef} />
               )}
-              <GameHUD
-                player1={player1}
-                player2={gameMode === 'solo' ? null : player2}
-                matchStartTime={matchStart}
-                chaosRef={chaosRef}
-                mode={gameMode === 'solo' ? 'solo' : gameMode === 'online' ? 'online' : '1v1'}
-                levelName={selectedWorldLevel?.title ?? selectedLevel.name}
-              />
               {gameMode === '1v1' && (
                 <TrapHUD player1={player1} player2={player2} chaosRef={chaosRef} />
+              )}
+
+              {/* ── Waiting for others overlay (online race: local player finished) ── */}
+              {gameMode === 'online' && onlineRaceFinished && (
+                <div
+                  className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none"
+                  style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+                >
+                  <div className="text-center">
+                    <p className="text-white font-black text-2xl uppercase tracking-widest mb-1">You Finished!</p>
+                    <p className="text-gray-400 text-sm animate-pulse">Waiting for others...</p>
+                  </div>
+                </div>
               )}
 
               {/* ── Pause overlay ──────────────────────────────────── */}
@@ -789,7 +966,9 @@ export default function Home() {
                 {renderMode === 'threePrimitive' ? '3D' : '2D'}
               </button>
             </div>
-            {/* Controls anchored to bottom of full screen, not the canvas box */}
+            </div>{/* end canvas area */}
+
+            {/* TouchControls — absolute inset-x-0 bottom-0, anchors to outer div */}
             <TouchControls mode={gameMode === '1v1' ? '1v1' : gameMode === 'online' ? 'online' : 'solo'} />
           </motion.div>
         )}
@@ -822,6 +1001,8 @@ export default function Home() {
               isFirstClear={soloResult.isFirstClear}
               nextLevel={soloResult.nextLevel}
               unlockedItems={soloResult.unlockedItems}
+              scoreBreakdown={soloResult.scoreBreakdown}
+              deaths={soloResult.deaths}
               onPlayAgain={() => { chaosRef.current = defaultChaosState(); setMatchStart(Date.now()); setScreen('game') }}
               onNextLevel={soloResult.nextLevel ? handleNextLevel : undefined}
               onWorldMap={() => setScreen('world-select')}

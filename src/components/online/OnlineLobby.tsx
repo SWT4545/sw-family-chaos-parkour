@@ -1,30 +1,30 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Copy, Check, Crown, Map, UserX, Wifi } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Crown, UserX, Wifi, Share2, Check } from 'lucide-react'
 import { useOnlineRoom } from '@/hooks/useOnlineRoom'
 import { CHARACTERS_LIST } from '@/lib/game/characters/CharacterRegistry'
+import { WORLD_REGISTRY } from '@/lib/game/levels/WorldRegistry'
+import { setRoomLevel, setRoomCountdown } from '@/lib/firebase/rooms'
 import type { RoomPlayer } from '@/types/room'
 
-const MAPS = [
-  { id: 'rooftop',  name: 'Rooftop Mayhem',   desc: 'Urban skyline chaos' },
-  { id: 'factory',  name: 'Chaos Factory',    desc: 'Industrial wipeout' },
-  { id: 'neon',     name: 'Neon Skyline',     desc: 'Night city rush' },
-  { id: 'playroom', name: 'Playroom Panic',   desc: 'Toy room obstacle blitz' },
-  { id: 'fortress', name: 'Family Fortress',  desc: 'Tactical precision run' },
-  { id: 'domain',   name: "Governor's Domain", desc: 'Legacy arena showdown' },
-  { id: 'chaos',    name: 'Chaos Dimension',  desc: 'Everything broken — good luck' },
-]
-
-interface Props {
-  roomCode:        string
-  localPlayerId:   string
-  onMatchStart:    (mapId: string) => void
-  onLeave:         () => void
-  onPlayersChange: (players: RoomPlayer[]) => void
+const DIFFICULTY_COLORS: Record<string, string> = {
+  starter: '#6ee7b7',
+  normal:  '#60a5fa',
+  hard:    '#f97316',
+  expert:  '#ef4444',
+  chaos:   '#a855f7',
 }
 
-function PlayerRow({ player, isMe, isLocalHost, onKick }: {
+interface Props {
+  roomCode:            string
+  localPlayerId:       string
+  onCountdownStarted: (countdownStartAt: number, levelId: string, worldId: string) => void
+  onLeave:             () => void
+  onPlayersChange:     (players: RoomPlayer[]) => void
+}
+
+function PlayerCard({ player, isMe, isLocalHost, onKick }: {
   player: RoomPlayer; isMe: boolean; isLocalHost: boolean; onKick?: () => void
 }) {
   const char = CHARACTERS_LIST.find(c => c.id === player.characterId)
@@ -38,7 +38,7 @@ function PlayerRow({ player, isMe, isLocalHost, onKick }: {
       }}
     >
       <div
-        className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0"
+        className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0"
         style={{ backgroundColor: `${char?.primaryColor ?? '#888'}25`, color: char?.primaryColor ?? '#888' }}
       >
         {player.displayName.charAt(0).toUpperCase()}
@@ -51,7 +51,7 @@ function PlayerRow({ player, isMe, isLocalHost, onKick }: {
             {player.displayName}{isMe && ' (you)'}
           </p>
         </div>
-        <p className="text-[10px] text-gray-600" style={{ color: char?.primaryColor }}>
+        <p className="text-[10px]" style={{ color: char?.primaryColor ?? '#555' }}>
           {char?.displayName ?? player.characterId}
         </p>
       </div>
@@ -71,7 +71,7 @@ function PlayerRow({ player, isMe, isLocalHost, onKick }: {
           </span>
         )}
         {isLocalHost && !player.isHost && !isMe && (
-          <button onClick={onKick} className="text-gray-600 hover:text-red-400 transition-colors p-1">
+          <button onClick={onKick} className="text-gray-600 hover:text-red-400 transition-colors p-1" aria-label="Kick player">
             <UserX size={13} />
           </button>
         )}
@@ -80,47 +80,75 @@ function PlayerRow({ player, isMe, isLocalHost, onKick }: {
   )
 }
 
-export function OnlineLobby({ roomCode, localPlayerId, onMatchStart, onLeave, onPlayersChange }: Props) {
-  const { room, players, loading, me, allReady, toggleReady, startMatch, leave, kick, changeMap, skipLeave } =
-    useOnlineRoom(roomCode, localPlayerId)
-  const [copied,   setCopied]   = useState(false)
-  const [mapIndex, setMapIndex] = useState(0)
-  const matchStartedRef = useRef(false)
+// All World 1 levels available for race
+const RACE_LEVELS = WORLD_REGISTRY[0].levels
+const RACE_WORLD  = WORLD_REGISTRY[0]
 
-  // Propagate player list to parent so GameCanvas knows remote characters
+export function OnlineLobby({ roomCode, localPlayerId, onCountdownStarted, onLeave, onPlayersChange }: Props) {
+  const { room, players, loading, me, allReady, toggleReady, leave, kick, skipLeave } =
+    useOnlineRoom(roomCode, localPlayerId)
+
+  const [shared,     setShared]     = useState(false)
+  const [levelIndex, setLevelIndex] = useState(0)
+  const [starting,   setStarting]   = useState(false)
+  const countdownFiredRef = useRef(false)
+
+  // Propagate player list to parent
   useEffect(() => { onPlayersChange(players) }, [players, onPlayersChange])
 
-  // Both host and joiner transition to game when room status becomes 'starting'
+  // Detect room.status becoming 'countdown' — transition for all players
   useEffect(() => {
-    if (room?.status === 'starting' && !matchStartedRef.current) {
-      matchStartedRef.current = true
+    if (room?.status === 'countdown' && room.countdownStartAt && room.selectedLevelId && room.selectedWorldId) {
+      if (countdownFiredRef.current) return
+      countdownFiredRef.current = true
       skipLeave()
-      onMatchStart(room.mapId ?? 'rooftop')
+      onCountdownStarted(room.countdownStartAt, room.selectedLevelId, room.selectedWorldId)
     }
-  }, [room?.status, room?.mapId, onMatchStart, skipLeave])
+  }, [room?.status, room?.countdownStartAt, room?.selectedLevelId, room?.selectedWorldId, onCountdownStarted, skipLeave])
 
   const isHost   = me?.isHost ?? false
-  const mapEntry = MAPS[mapIndex]
+  const selLevel = RACE_LEVELS[levelIndex] ?? RACE_LEVELS[0]
 
-  function copyCode() {
-    navigator.clipboard?.writeText(roomCode).catch(() => {})
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  async function handleShare() {
+    const text = `Join my Family Chaos Parkour race! Code: ${roomCode}`
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({ title: 'Join my race!', text })
+        setShared(true)
+        setTimeout(() => setShared(false), 2000)
+        return
+      } catch {
+        // fallback to clipboard
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text)
+      setShared(true)
+      setTimeout(() => setShared(false), 2000)
+    } catch {}
+  }
+
+  function handleLevelChange(dir: 1 | -1) {
+    const next = (levelIndex + dir + RACE_LEVELS.length) % RACE_LEVELS.length
+    setLevelIndex(next)
+    const lvl = RACE_LEVELS[next]
+    if (roomCode) setRoomLevel(roomCode, RACE_WORLD.id, lvl.id).catch(() => {})
   }
 
   async function handleStart() {
-    await startMatch()  // sets room status → 'starting'; effect handles transition for all players
+    if (starting || !allReady) return
+    setStarting(true)
+    try {
+      await setRoomLevel(roomCode, RACE_WORLD.id, selLevel.id)
+      await setRoomCountdown(roomCode)
+    } catch {
+      setStarting(false)
+    }
   }
 
   async function handleLeave() {
     await leave()
     onLeave()
-  }
-
-  async function handleMapChange(dir: 1 | -1) {
-    const next = (mapIndex + dir + MAPS.length) % MAPS.length
-    setMapIndex(next)
-    await changeMap(MAPS[next].id)
   }
 
   if (loading) {
@@ -142,107 +170,162 @@ export function OnlineLobby({ roomCode, localPlayerId, onMatchStart, onLeave, on
     )
   }
 
+  const readyCount = players.filter(p => p.ready || p.isHost).length
+
   return (
     <div
       className="relative h-dvh bg-[#080808] flex flex-col overflow-hidden"
       style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
     >
-      <div className="absolute inset-0 opacity-[0.06]"
-        style={{ backgroundImage: 'url(/family-chaos-poster.png)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(20px)', transform: 'scale(1.05)' }}
+      {/* Background */}
+      <div
+        className="absolute inset-0 opacity-[0.05]"
+        style={{
+          backgroundImage: 'url(/family-chaos-poster.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          filter: 'blur(20px)',
+          transform: 'scale(1.05)',
+        }}
       />
 
       {/* Header */}
       <div className="relative z-10 flex-shrink-0 flex items-center justify-between px-5 pt-5 pb-2">
-        <button onClick={handleLeave} className="flex items-center gap-1.5 text-gray-500 hover:text-white transition-colors">
+        <button
+          onClick={handleLeave}
+          className="flex items-center gap-1.5 text-gray-500 hover:text-white transition-colors min-h-[44px]"
+        >
           <ChevronLeft size={18} />
           <span className="text-xs font-semibold uppercase tracking-wider">Leave</span>
         </button>
         <div className="flex items-center gap-1.5">
           <Wifi size={11} className="text-green-400" />
-          <span className="text-[10px] text-green-400 font-bold uppercase tracking-wider">Online</span>
+          <span className="text-[10px] text-green-400 font-bold uppercase tracking-wider">Online Race</span>
         </div>
         <div className="w-16" />
       </div>
 
       {/* Room code */}
-      <div className="relative z-10 flex-shrink-0 px-5 pb-3 text-center">
+      <div className="relative z-10 flex-shrink-0 px-5 pb-4 text-center">
         <p className="text-[10px] uppercase tracking-[0.35em] text-gray-600 font-bold mb-1">Room Code</p>
-        <button
-          onClick={copyCode}
-          className="inline-flex items-center gap-2 group"
-        >
+        <div className="flex items-center justify-center gap-3">
           <span className="text-4xl font-black tracking-[0.4em] text-white">{roomCode}</span>
-          <span className="text-gray-600 group-hover:text-yellow-400 transition-colors">
-            {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
-          </span>
-        </button>
-        <p className="text-[10px] text-gray-700 mt-0.5">Share this code with family to join</p>
+          <button
+            onClick={handleShare}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors min-h-[44px]"
+            aria-label="Share room code"
+          >
+            {shared ? <Check size={14} className="text-green-400" /> : <Share2 size={14} className="text-gray-400" />}
+            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+              {shared ? 'Copied!' : 'Share'}
+            </span>
+          </button>
+        </div>
+        <p className="text-[10px] text-gray-700 mt-1">Share this code with family to join</p>
       </div>
 
-      {/* Players list */}
+      {/* Scrollable content */}
       <div className="relative z-10 flex-1 overflow-y-auto px-5 pb-3">
-        <div className="flex flex-col gap-2 max-w-lg mx-auto">
-          <p className="text-[10px] uppercase tracking-widest text-gray-600 font-bold mb-1">
-            Players ({players.length}/{room.maxPlayers})
-          </p>
-          {players
-            .sort((a, b) => (a.isHost ? -1 : b.isHost ? 1 : a.joinedAt - b.joinedAt))
-            .map(p => (
-              <PlayerRow
-                key={p.id}
-                player={p}
-                isMe={p.id === localPlayerId}
-                isLocalHost={isHost}
-                onKick={() => kick(p.id)}
-              />
-            ))}
-          {Array.from({ length: Math.max(0, room.maxPlayers - players.length) }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 rounded-xl px-4 py-3 border border-dashed border-gray-800/50">
-              <div className="w-9 h-9 rounded-full bg-gray-800/30 flex items-center justify-center">
-                <span className="text-gray-700 text-sm">+</span>
-              </div>
-              <p className="text-gray-700 text-xs">Waiting for player...</p>
-            </div>
-          ))}
-        </div>
+        <div className="max-w-lg mx-auto flex flex-col gap-4">
 
-        {/* Map picker — host only */}
-        {isHost && (
-          <div className="max-w-lg mx-auto mt-4 rounded-2xl p-4 border border-white/[0.06]"
-            style={{ backgroundColor: 'rgba(10,10,10,0.85)' }}>
-            <div className="flex items-center gap-2 mb-3">
-              <Map size={13} className="text-yellow-500" />
-              <p className="text-[10px] uppercase tracking-widest text-yellow-500 font-bold">Map</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => handleMapChange(-1)}
-                className="w-8 h-8 rounded-full bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center"
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={mapEntry.id}
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.15 }}
-                  className="flex-1 text-center"
+          {/* Players list */}
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-gray-600 font-bold mb-2">
+              Players ({players.length}/{room.maxPlayers})
+            </p>
+            <div className="flex flex-col gap-2">
+              {players
+                .sort((a, b) => (a.isHost ? -1 : b.isHost ? 1 : a.joinedAt - b.joinedAt))
+                .map(p => (
+                  <PlayerCard
+                    key={p.id}
+                    player={p}
+                    isMe={p.id === localPlayerId}
+                    isLocalHost={isHost}
+                    onKick={() => kick(p.id)}
+                  />
+                ))}
+              {Array.from({ length: Math.max(0, room.maxPlayers - players.length) }).map((_, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 rounded-xl px-4 py-3 border border-dashed border-gray-800/50"
                 >
-                  <p className="font-black text-white uppercase text-sm">{mapEntry.name}</p>
-                  <p className="text-gray-600 text-[10px]">{mapEntry.desc}</p>
-                </motion.div>
-              </AnimatePresence>
-              <button
-                onClick={() => handleMapChange(1)}
-                className="w-8 h-8 rounded-full bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center"
-              >
-                <ChevronRight size={14} />
-              </button>
+                  <div className="w-10 h-10 rounded-full bg-gray-800/30 flex items-center justify-center">
+                    <span className="text-gray-700 text-sm">+</span>
+                  </div>
+                  <p className="text-gray-700 text-xs">Waiting for player...</p>
+                </div>
+              ))}
             </div>
           </div>
-        )}
+
+          {/* Level picker — host only */}
+          {isHost && (
+            <div
+              className="rounded-2xl p-4 border border-white/[0.06]"
+              style={{ backgroundColor: 'rgba(10,10,10,0.85)' }}
+            >
+              <p className="text-[10px] uppercase tracking-widest text-yellow-500 font-bold mb-3">
+                Select Level
+              </p>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleLevelChange(-1)}
+                  className="w-10 h-10 rounded-full bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center flex-shrink-0"
+                  aria-label="Previous level"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={selLevel.id}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex-1 text-center"
+                  >
+                    <p className="text-[9px] uppercase tracking-widest text-gray-600 font-bold mb-0.5">
+                      {RACE_WORLD.name} · Level {selLevel.levelNumber}
+                    </p>
+                    <p className="font-black text-white uppercase text-sm leading-tight">{selLevel.title}</p>
+                    <p className="text-gray-500 text-[10px] mt-0.5">{selLevel.subtitle}</p>
+                    <span
+                      className="inline-block mt-1.5 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                      style={{
+                        backgroundColor: `${DIFFICULTY_COLORS[selLevel.difficulty] ?? '#888'}20`,
+                        color: DIFFICULTY_COLORS[selLevel.difficulty] ?? '#888',
+                        border: `1px solid ${DIFFICULTY_COLORS[selLevel.difficulty] ?? '#888'}40`,
+                      }}
+                    >
+                      {selLevel.difficulty}
+                    </span>
+                  </motion.div>
+                </AnimatePresence>
+                <button
+                  onClick={() => handleLevelChange(1)}
+                  className="w-10 h-10 rounded-full bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center flex-shrink-0"
+                  aria-label="Next level"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Non-host: show selected level info */}
+          {!isHost && room.selectedLevelId && (
+            <div
+              className="rounded-2xl p-4 border border-white/[0.06] text-center"
+              style={{ backgroundColor: 'rgba(10,10,10,0.85)' }}
+            >
+              <p className="text-[10px] uppercase tracking-widest text-gray-600 font-bold mb-1">Level</p>
+              <p className="font-black text-white text-sm uppercase">
+                {RACE_LEVELS.find(l => l.id === room.selectedLevelId)?.title ?? room.selectedLevelId}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Bottom CTA */}
@@ -251,25 +334,29 @@ export function OnlineLobby({ roomCode, localPlayerId, onMatchStart, onLeave, on
           {isHost ? (
             <motion.button
               onClick={handleStart}
-              disabled={!allReady}
-              whileHover={allReady ? { scale: 1.02 } : {}}
-              whileTap={allReady ? { scale: 0.97 } : {}}
-              className="w-full py-4 rounded-2xl font-black text-base uppercase tracking-widest text-black bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={!allReady || starting}
+              whileHover={allReady && !starting ? { scale: 1.02 } : {}}
+              whileTap={allReady && !starting ? { scale: 0.97 } : {}}
+              className="w-full py-4 rounded-2xl font-black text-base uppercase tracking-widest text-black bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed min-h-[56px]"
             >
-              {allReady ? 'START MATCH ▶' : `Waiting for players... (${players.filter(p => p.ready || p.isHost).length}/${players.length} ready)`}
+              {starting
+                ? 'Starting...'
+                : allReady
+                  ? 'START RACE ▶'
+                  : `Waiting... (${readyCount}/${players.length} ready)`}
             </motion.button>
           ) : (
             <motion.button
               onClick={toggleReady}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
-              className={`w-full py-4 rounded-2xl font-black text-base uppercase tracking-widest transition-colors ${
+              className={`w-full py-4 rounded-2xl font-black text-base uppercase tracking-widest transition-colors min-h-[56px] ${
                 me?.ready
                   ? 'bg-green-500/20 text-green-400 border border-green-500/40'
                   : 'text-black bg-yellow-400'
               }`}
             >
-              {me?.ready ? 'READY ✓ (tap to un-ready)' : '✓ READY UP'}
+              {me?.ready ? 'READY ✓  (tap to un-ready)' : '✓  READY UP'}
             </motion.button>
           )}
         </div>

@@ -37,7 +37,7 @@ export function useOnlineRoom(code: string | null, localPlayerId: string | null)
   const startMatch = useCallback(async () => {
     if (!code) return
     skipLeaveRef.current = true   // game is starting — don't leave on unmount
-    await setRoomStatus(code, 'starting')
+    await setRoomStatus(code, 'playing')
   }, [code])
 
   const leave = useCallback(async () => {

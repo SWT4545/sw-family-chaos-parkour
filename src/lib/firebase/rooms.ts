@@ -1,6 +1,6 @@
 import { ref, set, get, update, remove, onValue, off } from 'firebase/database'
 import { getRtdb } from './firebaseConfig'
-import type { Room, RoomPlayer, RoomStatus } from '@/types/room'
+import type { Room, RoomPlayer, RoomStatus, RaceResult } from '@/types/room'
 
 const ROOT = 'swfcp_rooms'
 const TIMEOUT_MS = 10_000
@@ -65,7 +65,11 @@ export async function joinRoom(params: {
   if (!snap.exists()) return { success: false, error: 'Room not found' }
 
   const room = snap.val() as Room
-  if (room.status !== 'waiting') return { success: false, error: 'Game already started' }
+  if (room.status !== 'waiting') {
+    const inProgress: RoomStatus[] = ['countdown', 'playing', 'finishing', 'results']
+    if (inProgress.includes(room.status)) return { success: false, error: 'Game already in progress' }
+    return { success: false, error: 'Game already started' }
+  }
 
   const player: RoomPlayer = {
     id: params.playerId, displayName: params.playerName,
@@ -132,4 +136,34 @@ export async function updatePlayerCharacter(
   const db = getRtdb()
   if (!db) return
   await withTimeout(update(ref(db, `${ROOT}/${code}/players/${playerId}`), { characterId, ready: false }))
+}
+
+export async function setRoomLevel(code: string, worldId: string, levelId: string): Promise<void> {
+  const db = getRtdb()
+  if (!db) return
+  await withTimeout(update(ref(db, `${ROOT}/${code}/data`), { selectedWorldId: worldId, selectedLevelId: levelId }))
+}
+
+export async function setRoomCountdown(code: string): Promise<void> {
+  const db = getRtdb()
+  if (!db) return
+  await withTimeout(update(ref(db, `${ROOT}/${code}/data`), {
+    status: 'countdown' as RoomStatus,
+    countdownStartAt: Date.now(),
+  }))
+}
+
+export async function setRoomPlaying(code: string): Promise<void> {
+  const db = getRtdb()
+  if (!db) return
+  await withTimeout(update(ref(db, `${ROOT}/${code}/data`), { status: 'playing' as RoomStatus }))
+}
+
+export async function setRoomResults(code: string, results: RaceResult[]): Promise<void> {
+  const db = getRtdb()
+  if (!db) return
+  await withTimeout(update(ref(db, `${ROOT}/${code}/data`), {
+    status: 'results' as RoomStatus,
+    raceResults: results,
+  }))
 }

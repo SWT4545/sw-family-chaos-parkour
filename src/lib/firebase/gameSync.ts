@@ -11,6 +11,7 @@ export interface PlayerSyncState {
   coins:      number
   checkpoint: number
   finished?:  boolean  // true when player crosses finish line
+  finishedAt?: number  // ms timestamp when player finished
   ts:         number
 }
 
@@ -47,4 +48,20 @@ export async function cleanupGameSync(roomCode: string, playerId: string): Promi
   const db = getRtdb()
   if (!db) return
   try { await set(ref(db, `games/${roomCode}/players/${playerId}`), null) } catch {}
+}
+
+export function subscribeToAllPlayers(
+  roomCode: string,
+  onUpdate: (states: Record<string, PlayerSyncState>) => void,
+): () => void {
+  const db = getRtdb()
+  if (!db) return () => {}
+
+  const r = ref(db, `games/${roomCode}/players`)
+  onValue(r, (snap) => {
+    const data = snap.val()
+    if (!data) return
+    onUpdate(data as Record<string, PlayerSyncState>)
+  })
+  return () => off(r)
 }

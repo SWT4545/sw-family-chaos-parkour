@@ -13,6 +13,10 @@ export interface ChaosState {
   tacoRainActive: boolean
   p1Coins:        number
   p2Coins:        number
+  // Campaign / solo fields (undefined when not in solo campaign mode)
+  p1Lives?:       number   // current lives remaining
+  p1Deaths?:      number   // deaths this run
+  p1TrapHits?:    number   // trap hits this run
 }
 
 export function defaultChaosState(): ChaosState {

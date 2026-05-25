@@ -8,8 +8,19 @@ export interface LeaderboardEntry {
   playerName:  string
   characterId: string
   score:       number
-  category:    'solo-time' | 'wins' | 'coins'
+  category:    'solo-time' | 'wins' | 'coins' | 'level-score'
   updatedAt:   number
+  // Rich fields for campaign leaderboard (optional — backwards compat)
+  levelId?:             string
+  worldId?:             string
+  difficulty?:          string
+  finishTimeMs?:        number
+  finalScore?:          number
+  coinsCollected?:      number
+  totalCoinsAvailable?: number
+  deaths?:              number
+  trapHits?:            number
+  starsEarned?:         number
 }
 
 export async function submitLeaderboardScore(entry: LeaderboardEntry): Promise<void> {

@@ -15,6 +15,8 @@ export type GameScreen =
   | 'online-create'
   | 'online-join'
   | 'online-lobby'
+  | 'race-countdown'
+  | 'race-results'
   | 'game'
   | 'victory'
   | 'solo-victory'
