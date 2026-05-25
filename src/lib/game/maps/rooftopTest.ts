@@ -57,6 +57,13 @@ export const ROOFTOP_TEST: MapDef = {
     { x: 3760, y: 330 }, { x: 4050, y: 312 },
   ],
 
+  // Money bags — worth 10 coins each, placed on key platforms
+  moneyBagPositions: [
+    { x: 1460, y: 455 },   // Section 2 checkpoint platform
+    { x: 2652, y: 332 },   // Section 4 mid platform
+    { x: 3940, y: 308 },   // Final approach platform
+  ],
+
   // Solo mode — pre-placed map hazards
   soloHazards: [
     { trapId: 'banana_peel',  x: 560,  y: 608 },

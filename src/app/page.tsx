@@ -157,8 +157,9 @@ export default function Home() {
   const [returnScreenAfterChar, setReturnScreenAfterChar] = useState<'world-select' | 'lobby'>('world-select')
   const [campaignLevelName, setCampaignLevelName] = useState<string | undefined>(undefined)
 
-  const chaosRef      = useRef<ChaosState>(defaultChaosState())
-  const gameRenderRef = useRef(defaultGameRenderState())
+  const chaosRef        = useRef<ChaosState>(defaultChaosState())
+  const gameRenderRef   = useRef(defaultGameRenderState())
+  const isCompletingRef = useRef(false)   // guard: prevents handleVictory firing twice
   const [renderMode, setRenderModeState] = useState<CharacterRenderMode>('png2d')
   const [gamePaused, setGamePaused]      = useState(false)
 
@@ -319,8 +320,12 @@ export default function Home() {
     winnerId: 1 | 2,
     time: number,
     coins: { p1: number; p2: number },
-    extra?: { soloDeaths?: number; p1TrapHits?: number },
+    extra?: { soloDeaths?: number; p1TrapHits?: number; p1MoneyBags?: number },
   ) => {
+    // Guard against double-fire (gameOver flag in GameCanvas is the primary guard, this is belt-and-suspenders)
+    if (isCompletingRef.current) return
+    isCompletingRef.current = true
+
     setVictoryData({ winnerId, time, coins })
 
     // Legacy level completion key (backward compat with LevelSelect)
@@ -347,12 +352,15 @@ export default function Home() {
         const deathCount   = extra?.soloDeaths    ?? 0
         const trapHitCount = extra?.p1TrapHits    ?? 0
 
-        // Compute isBestTime before profile is mutated by processLevelComplete
-        const prevBest  = profile.bestTimesByCourse[selectedWorldLevel.id]
+        // Compute isBestTime from local profile (synchronous — no Firebase needed)
+        const prevBest   = profile.bestTimesByCourse[selectedWorldLevel.id]
         const isBestTime = !prevBest || time * 1000 < prevBest
 
-        // Calculate score up-front (parTimeMs available on WorldLevelDef)
-        const totalCoinsOnMap = selectedWorldLevel.map.coinPositions?.length ?? 0
+        // Total pickups on this map
+        const totalCoinsOnMap = (selectedWorldLevel.map.coinPositions?.length ?? 0) +
+          (selectedWorldLevel.map.moneyBagPositions?.length ?? 0) * 10
+
+        // Calculate score immediately — all data is local
         const bd = ScoreService.calculate({
           difficulty:     selectedWorldLevel.difficulty,
           finishTimeMs:   time * 1000,
@@ -364,6 +372,32 @@ export default function Home() {
           isBestTime,
         })
 
+        // Compute stars locally (mirrors ProgressionService logic — instant, no Firebase)
+        const allCoins = totalCoinsOnMap > 0 && coins.p1 >= totalCoinsOnMap
+        const noDeath  = deathCount === 0
+        let localStars: 0|1|2|3 = 1
+        if (time * 1000 <= selectedWorldLevel.threeStarMs || (allCoins && noDeath)) localStars = 3
+        else if (time * 1000 <= selectedWorldLevel.parTimeMs) localStars = 2
+
+        // ── STEP 1: Show victory screen IMMEDIATELY — never freeze ──
+        console.log('[LEVEL_COMPLETE_START]', { level: selectedWorldLevel.id, time, score: bd.finalScore, stars: localStars })
+        setSoloResult({
+          starsEarned:    localStars,
+          coinsEarned:    boostedCoins,
+          xpEarned:       50,
+          isFirstClear:   !profile.completedLevels.includes(selectedWorldLevel.id),
+          deaths:         deathCount,
+          scoreBreakdown: bd,
+        })
+        setScreen('solo-victory')
+        console.log('[VICTORY_SCREEN_SET]')
+
+        // ── STEP 2: Persist in background — hydrate victory screen with accurate data ──
+        console.log('[PERSISTENCE_START]')
+        const persistTimeout = setTimeout(() => {
+          console.warn('[PERSISTENCE_FAILED] Firebase took >1500ms — victory already showing')
+        }, 1500)
+
         ProgressionService.processLevelComplete(
           profile.playerId,
           selectedWorldDef.id,
@@ -373,10 +407,10 @@ export default function Home() {
           selectedWorldLevel.difficulty,
           deathCount,
         ).then(result => {
+          clearTimeout(persistTimeout)
           setLastSessionCoins(result.coinsEarned)
           setLastSessionXp(result.xpEarned)
 
-          // Find next level display info within the same world
           const nextWL = selectedWorldDef.levels.find(l => l.id === result.nextLevelId)
           const nextLevelDisplay = nextWL
             ? { id: nextWL.id, title: nextWL.title, subtitle: nextWL.subtitle }
@@ -386,7 +420,7 @@ export default function Home() {
           if (result.newCharacterUnlocked) unlockedItems.push(result.newCharacterUnlocked)
           if (result.newWorldUnlocked) unlockedItems.push(`World ${result.newWorldUnlocked.slice(-1)}`)
 
-          // Submit rich leaderboard entry
+          // Submit rich leaderboard in background (don't block UI)
           submitLeaderboardScore({
             playerId:            profile.playerId,
             playerName:          player1!.name,
@@ -406,19 +440,23 @@ export default function Home() {
             starsEarned:         result.starsEarned,
           })
 
-          // Set soloResult and screen together so the victory screen never renders blank
-          setSoloResult({
+          // Hydrate victory screen with accurate server data (functional update to preserve existing)
+          setSoloResult(prev => prev ? {
+            ...prev,
             starsEarned:    result.starsEarned,
             coinsEarned:    result.coinsEarned,
             xpEarned:       result.xpEarned,
             isFirstClear:   result.isFirstClear,
             nextLevel:      nextLevelDisplay,
             unlockedItems:  unlockedItems.length > 0 ? unlockedItems : undefined,
-            deaths:         deathCount,
-            scoreBreakdown: bd,
-          })
-          setScreen('solo-victory')
+          } : prev)
+
+          console.log('[PERSISTENCE_DONE]', { stars: result.starsEarned, coins: result.coinsEarned })
           syncProfileToLeaderboards(profile.playerId)
+        }).catch(err => {
+          clearTimeout(persistTimeout)
+          console.error('[PERSISTENCE_FAILED]', err)
+          // Victory screen is already showing — silently fail the Firebase write
         })
       } else {
         // Legacy solo run recording
@@ -522,6 +560,7 @@ export default function Home() {
   }, [gameMode, player1, player2, selectedLevel, selectedCourse, selectedDifficulty, courseProgression, selectedWorldLevel, selectedWorldDef])
 
   function startNewGame() {
+    isCompletingRef.current = false
     chaosRef.current = defaultChaosState()
     setMatchStart(Date.now())
     setScreen('game')
@@ -529,6 +568,7 @@ export default function Home() {
 
   function handleNextLevel() {
     if (!soloResult?.nextLevel || !selectedWorldDef) return
+    isCompletingRef.current = false
     const nextWL = selectedWorldDef.levels.find(l => l.id === soloResult!.nextLevel!.id)
     if (!nextWL) return
     setSelectedWorldLevel(nextWL)
@@ -860,6 +900,7 @@ export default function Home() {
                 soloLives={gameMode === 'solo' && selectedWorldLevel
                   ? LIVES_BY_DIFFICULTY[selectedWorldLevel.difficulty]
                   : undefined}
+                isWorldLevel={gameMode === 'solo' && selectedWorldLevel !== null}
                 raceProgress={gameMode === 'online' ? raceProgress : undefined}
               />
             </div>

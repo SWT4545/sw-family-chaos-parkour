@@ -35,8 +35,9 @@ export interface MapDef {
   finishY: number
   platforms: Platform[]
   checkpoints: CheckpointDef[]
-  coinPositions?: CoinPosition[]
-  soloHazards?:  SoloHazardDef[]
+  coinPositions?:    CoinPosition[]
+  moneyBagPositions?: CoinPosition[]  // value = 10 coins each
+  soloHazards?:      SoloHazardDef[]
 }
 
 export interface LevelDef {

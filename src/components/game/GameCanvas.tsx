@@ -66,6 +66,12 @@ interface CoinEntity {
   collected: boolean
 }
 
+interface MoneyBagEntity {
+  id:        number
+  x:         number; y: number
+  collected: boolean
+}
+
 interface EffectState {
   type:    TrapId | PowerupId
   endsAt:  number
@@ -131,7 +137,7 @@ interface Props {
   player2:         Character | null
   matchStartTime:  number
   mode:            'solo' | '1v1' | 'online'
-  onVictory:       (winner: 1 | 2, time: number, coins: { p1: number; p2: number }, extra?: { soloDeaths?: number; p1TrapHits?: number }) => void
+  onVictory:       (winner: 1 | 2, time: number, coins: { p1: number; p2: number }, extra?: { soloDeaths?: number; p1TrapHits?: number; p1MoneyBags?: number }) => void
   chaosRef:        MutableRefObject<ChaosState>
   remoteGhosts?:   RemoteGhost[]
   onTickSync?:     (state: PlayerSyncState) => void
@@ -299,6 +305,10 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
     const coinsOnMap: CoinEntity[] = (activeMap.coinPositions ?? []).map((pos, i) => ({
       id: i, x: pos.x, y: pos.y, collected: false,
     }))
+    const moneyBagsOnMap: MoneyBagEntity[] = (activeMap.moneyBagPositions ?? []).map((pos, i) => ({
+      id: i, x: pos.x, y: pos.y, collected: false,
+    }))
+    let p1MoneyBags = 0
 
     // ── Emote state ──────────────────────────────────────────────
     const inv           = CosmeticInventoryManager.get()
@@ -505,6 +515,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
           // Apply effect
           if (def.effectType !== 'visual') {
             const effect: EffectState = { type: trap.trapId, endsAt: now + def.duration * 1000 }
+            console.log('[TRAP_TRIGGERED]', { trap: trap.trapId, pid, effect: def.effectType })
             if (pid === 1) { p1TrapEffect = effect; p1TrapHits++ }
             else           { p2TrapEffect = effect }
 
@@ -622,6 +633,32 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       }
     }
 
+    function checkMoneyBagCollisions() {
+      for (const bag of moneyBagsOnMap) {
+        if (bag.collected) continue
+        const targets: Array<{ body: Matter.Body; pid: 1 | 2 }> = [
+          { body: p1Body, pid: 1 },
+          ...(p2Body ? [{ body: p2Body, pid: 2 as const }] : []),
+        ]
+        for (const { body, pid } of targets) {
+          const REACH_X = PLAYER_W / 2 + 22
+          const REACH_Y = PLAYER_H / 2 + 18
+          if (
+            Math.abs(body.position.x - bag.x) < REACH_X &&
+            Math.abs(body.position.y - bag.y) < REACH_Y
+          ) {
+            bag.collected = true
+            if (pid === 1) { p1Coins += 10; p1MoneyBags++ }
+            else           { p2Coins += 10 }
+            SFX.coin()
+            particles.push(...burst(bag.x, bag.y, '#f59e0b', 20, 3, 8))
+            shakeIntensity = 3
+            break
+          }
+        }
+      }
+    }
+
     function drawCoins(now: number) {
       for (const coin of coinsOnMap) {
         if (coin.collected) continue
@@ -642,6 +679,38 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
         // Symbol
         ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
         ctx.fillStyle = '#78350f'; ctx.fillText('C', coin.x, cy)
+        ctx.restore()
+      }
+    }
+
+    function drawMoneyBags(now: number) {
+      for (const bag of moneyBagsOnMap) {
+        if (bag.collected) continue
+        const bob = Math.sin(now * 0.004 + bag.id * 1.1) * 4
+        const cy  = bag.y + bob
+
+        ctx.save()
+        // Outer glow
+        const grd = ctx.createRadialGradient(bag.x, cy, 0, bag.x, cy, 20)
+        grd.addColorStop(0, 'rgba(245,158,11,0.65)')
+        grd.addColorStop(1, 'rgba(245,158,11,0)')
+        ctx.fillStyle = grd
+        ctx.beginPath(); ctx.arc(bag.x, cy, 20, 0, Math.PI * 2); ctx.fill()
+        // Bag body
+        ctx.beginPath(); ctx.arc(bag.x, cy, 11, 0, Math.PI * 2)
+        ctx.fillStyle = '#b45309'; ctx.fill()
+        ctx.strokeStyle = '#78350f'; ctx.lineWidth = 2; ctx.stroke()
+        // ×10 label
+        ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+        ctx.fillStyle = '#fef3c7'; ctx.fillText('×10', bag.x, cy)
+        // Small sparkle dots
+        for (let i = 0; i < 3; i++) {
+          const angle = (now * 0.003 + i * 2.1) % (Math.PI * 2)
+          const sx = bag.x + Math.cos(angle) * 15
+          const sy = cy    + Math.sin(angle) * 15
+          ctx.beginPath(); ctx.arc(sx, sy, 2, 0, Math.PI * 2)
+          ctx.fillStyle = '#fbbf24'; ctx.fill()
+        }
         ctx.restore()
       }
     }
@@ -1615,6 +1684,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       checkTrapCollisions(nowMs)
       checkPowerupCollisions(nowMs)
       checkCoinCollisions()
+      checkMoneyBagCollisions()
       tickTacoRain(nowMs, dtSecs)
 
       // Update particles
@@ -1639,7 +1709,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
         }
         gameOver = true; SFX.victory()
         trackEvent('match_finished', { winner: 1, reason: 'finish', time: elapsed })
-        onVictoryRef.current(1, elapsed, { p1: p1Coins, p2: p2Coins }, { soloDeaths, p1TrapHits }); return
+        onVictoryRef.current(1, elapsed, { p1: p1Coins, p2: p2Coins }, { soloDeaths, p1TrapHits, p1MoneyBags }); return
       }
       if (p2Body && atFinish(p2Body)) {
         gameOver = true; SFX.victory()
@@ -1717,6 +1787,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       drawTraps(nowMs)
       drawPowerups(nowMs)
       drawCoins(nowMs)
+      drawMoneyBags(nowMs)
       // Tacos (world-space)
       for (const taco of tacos) drawTaco(ctx, taco)
       // Remote ghost players (online mode)

@@ -20,7 +20,8 @@ interface Props {
   chaosRef:       MutableRefObject<ChaosState>
   mode:           'solo' | '1v1' | 'online'
   levelName?:     string
-  soloLives?:     number               // max lives for campaign mode
+  soloLives?:     number               // max lives; undefined = unlimited (Training Grounds)
+  isWorldLevel?:  boolean              // true when in campaign — always show lives row
   raceProgress?:  RaceProgressEntry[]
 }
 
@@ -58,12 +59,12 @@ function RaceProgressBar({ raceProgress }: { raceProgress: RaceProgressEntry[] }
 }
 
 function LivesDisplay({ lives, maxLives }: { lives: number | undefined; maxLives: number | undefined }) {
-  if (maxLives === undefined) return null
-  if (lives === undefined) {
-    // Training Grounds starter difficulty — unlimited
+  // maxLives undefined = Training Grounds / unlimited lives
+  if (maxLives === undefined) {
     return <span className="text-xs font-black" style={{ color: '#4ade80' }}>∞</span>
   }
-  const count = Math.max(0, lives)
+  // Use maxLives as fallback until chaosRef first sync fires
+  const count  = Math.max(0, lives ?? maxLives)
   const hearts = Array.from({ length: Math.max(maxLives, count) }, (_, i) => i < count)
   return (
     <div className="flex items-center gap-0.5">
@@ -74,7 +75,7 @@ function LivesDisplay({ lives, maxLives }: { lives: number | undefined; maxLives
   )
 }
 
-export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode, levelName, soloLives, raceProgress }: Props) {
+export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode, levelName, soloLives, isWorldLevel, raceProgress }: Props) {
   const [display,  setDisplay]  = useState(mode === 'solo' ? 0 : MATCH_SECS)
   const [coins,    setCoins]    = useState({ p1: 0, p2: 0 })
   const [lives,    setLives]    = useState<number | undefined>(soloLives)
@@ -118,12 +119,13 @@ export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode, leve
             </span>
           </div>
           <div className="flex items-center gap-1.5">
-            {mode === 'solo' && soloLives !== undefined ? (
-              <LivesDisplay lives={lives} maxLives={soloLives} />
+            {mode === 'solo' && isWorldLevel ? (
+              // Campaign mode — always show lives (∞ for Training Grounds, hearts otherwise)
+              <>
+                <LivesDisplay lives={lives} maxLives={soloLives} />
+                <span className="text-[9px] font-bold text-yellow-400 tabular-nums">💰{coins.p1}</span>
+              </>
             ) : (
-              <span className="text-[9px] font-bold text-yellow-400 tabular-nums">💰{coins.p1}</span>
-            )}
-            {mode === 'solo' && soloLives !== undefined && (
               <span className="text-[9px] font-bold text-yellow-400 tabular-nums">💰{coins.p1}</span>
             )}
           </div>
