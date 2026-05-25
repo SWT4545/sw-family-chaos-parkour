@@ -114,6 +114,7 @@ const SFX = {
   trapPlace:  () => tone(220, 'square', 0.12),
   slip:       () => { tone(420, 'sine', 0.18, 0.3); setTimeout(() => tone(180, 'sine', 0.35, 0.2), 120) },
   freeze:     () => { tone(160, 'triangle', 0.22); tone(110, 'triangle', 0.3) },
+  slow:       () => { tone(200, 'sine', 0.22, 0.38); setTimeout(() => tone(140, 'sine', 0.18, 0.3), 200) },
   push:       () => tone(95,  'sawtooth', 0.28),
   powerup:    () => [523, 659, 784].forEach((f, i) => setTimeout(() => tone(f, 'sine', 0.14, 0.18), i * 75)),
   checkpoint: () => { tone(523, 'sine', 0.18, 0.28); setTimeout(() => tone(659, 'sine', 0.2, 0.28), 100) },
@@ -371,9 +372,10 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       const now  = Date.now()
       const vel  = body.velocity
 
-      // Freeze — no movement at all (bear_trap)
+      // Freeze — no movement at all (bear_trap); counter gravity so player doesn't fall
       if (trapFx?.type === 'bear_trap' && trapFx.endsAt > now) {
-        Matter.Body.setVelocity(body, { x: 0, y: 0 })
+        // Clamp y to 0 (or small positive if on ground) so gravity doesn't drag them off platforms
+        Matter.Body.setVelocity(body, { x: 0, y: Math.min(0.5, body.velocity.y) })
         return
       }
       // Push — skip horizontal control, force leftward (giant_fan)
@@ -523,7 +525,7 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
             if (def.effectType === 'slip')   { SFX.slip();   particles.push(...burst(x, y, '#fbbf24', 14)) }
             if (def.effectType === 'freeze') { SFX.freeze(); particles.push(...burst(x, y, '#60a5fa', 16)) }
             if (def.effectType === 'push')   { SFX.push();   particles.push(...burst(x, y, '#60a5fa', 10)) }
-            if (def.effectType === 'slow')   {               particles.push(...burst(x, y, '#22c55e', 12)) }
+            if (def.effectType === 'slow')   { SFX.slow();   particles.push(...burst(x, y, '#22c55e', 16)) }
             shakeIntensity = 6
             trackEvent('trap_hit', { victim: pid, trap: trap.trapId })
           } else {
@@ -719,9 +721,13 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
     function tickTacoRain(now: number, dtSecs: number) {
       if (!tacoRainActive && now >= nextTacoRain) {
         tacoRainActive = true
-        tacos = spawnTacoRain(camX, VIEWPORT_W)
+        // Spawn tacos starting slightly behind the player but covering 2× viewport ahead
+        // so they land on and around the player even as they keep running
+        const spawnOrigin = p1Body.position.x - VIEWPORT_W * 0.2
+        tacos = spawnTacoRain(spawnOrigin, VIEWPORT_W * 2)
         SFX.tacoRain()
         shakeIntensity = 8
+        console.log('[TACO_RAIN_TRIGGERED]', { playerX: Math.round(p1Body.position.x), elapsed: Math.round((now - matchStartTime) / 1000) + 's' })
         trackEvent('taco_rain_started', { camX: Math.round(camX) })
       }
 
@@ -1375,9 +1381,15 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
     function drawTraps(now: number) {
       for (const trap of activeTrapEntities) {
         if (now > trap.expiresAt) continue
-        const def     = TRAP_REGISTRY[trap.trapId]
-        const elapsed = now - (trap.expiresAt - def.duration * 1000 - 2000)
-        const alpha   = Math.min(1, Math.max(0.3, 1 - elapsed / (def.duration * 1000 + 2000)))
+        const def = TRAP_REGISTRY[trap.trapId]
+
+        // Solo hazards on cooldown: draw dimmed to signal they're inactive
+        const onCooldown = trap.isSoloHazard && trap.triggered
+        const alpha = onCooldown
+          ? 0.18 + 0.07 * Math.sin(now * 0.008)   // faint pulse during cooldown
+          : trap.isSoloHazard
+            ? 1                                      // solo hazards always full alpha when active
+            : Math.min(1, Math.max(0.3, 1 - (now - (trap.expiresAt - def.duration * 1000 - 2000)) / (def.duration * 1000 + 2000)))
 
         ctx.save()
         ctx.globalAlpha = alpha

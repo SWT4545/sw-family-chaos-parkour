@@ -76,9 +76,11 @@ function LivesDisplay({ lives, maxLives }: { lives: number | undefined; maxLives
 }
 
 export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode, levelName, soloLives, isWorldLevel, raceProgress }: Props) {
-  const [display,  setDisplay]  = useState(mode === 'solo' ? 0 : MATCH_SECS)
-  const [coins,    setCoins]    = useState({ p1: 0, p2: 0 })
-  const [lives,    setLives]    = useState<number | undefined>(soloLives)
+  const [display,     setDisplay]     = useState(mode === 'solo' ? 0 : MATCH_SECS)
+  const [coins,       setCoins]       = useState({ p1: 0, p2: 0 })
+  const [lives,       setLives]       = useState<number | undefined>(soloLives)
+  const [p1Effect,    setP1Effect]    = useState<{ label: string; color: string; pct: number } | null>(null)
+  const [tacoRaining, setTacoRaining] = useState(false)
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -86,10 +88,14 @@ export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode, leve
       const val     = mode === 'solo' ? elapsed : Math.max(0, MATCH_SECS - elapsed)
       setDisplay(val)
       setCoins({ p1: chaosRef.current.p1Coins, p2: chaosRef.current.p2Coins })
-      // Read live lives count from chaos ref (updated by GameCanvas)
-      if (soloLives !== undefined) {
-        setLives(chaosRef.current.p1Lives)
-      }
+      setTacoRaining(chaosRef.current.tacoRainActive)
+      // Trap effect badge
+      const el = chaosRef.current.p1.effectLabel
+      const ec = chaosRef.current.p1.effectColor
+      const ep = chaosRef.current.p1.effectPct
+      setP1Effect(el && ep > 0 ? { label: el, color: ec ?? '#f87171', pct: ep } : null)
+      // Lives (updated immediately on death in chaosRef)
+      if (soloLives !== undefined) setLives(chaosRef.current.p1Lives)
     }, 250)
     return () => clearInterval(id)
   }, [matchStartTime, chaosRef, mode, soloLives])
@@ -107,16 +113,32 @@ export function GameHUD({ player1, player2, matchStartTime, chaosRef, mode, leve
         <RaceProgressBar raceProgress={raceProgress} />
       )}
 
+      {/* Taco rain banner */}
+      {tacoRaining && (
+        <div className="flex items-center justify-center py-0.5" style={{ background: 'rgba(245,158,11,0.18)', borderBottom: '1px solid rgba(245,158,11,0.25)' }}>
+          <span className="text-[9px] font-black uppercase tracking-widest text-yellow-400 animate-pulse">🌮 TACO RAIN 🌮</span>
+        </div>
+      )}
+
       {/* Main HUD row */}
       <div className="flex items-center justify-between gap-1 px-3" style={{ height: 52, paddingTop: 'env(safe-area-inset-top)' }}>
 
-        {/* Left — character + lives + coins */}
+        {/* Left — character + lives + coins + trap effect */}
         <div className="flex flex-col justify-center min-w-0 gap-0.5">
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: player1.color, boxShadow: `0 0 4px ${player1.color}` }} />
             <span className="font-black text-[9px] uppercase tracking-wider truncate max-w-[60px]" style={{ color: player1.color }}>
               {player1.name}
             </span>
+            {/* Trap/effect badge */}
+            {p1Effect && (
+              <span
+                className="text-[7px] font-black uppercase px-1 py-0.5 rounded"
+                style={{ background: p1Effect.color + '33', color: p1Effect.color, border: `1px solid ${p1Effect.color}55` }}
+              >
+                {p1Effect.label}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-1.5">
             {mode === 'solo' && isWorldLevel ? (
