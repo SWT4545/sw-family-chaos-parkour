@@ -3,9 +3,18 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { preloadGameAssets } from '@/lib/game/assets/preloadAssets'
 import { MusicManager } from '@/lib/game/audio/MusicManager'
+import { AudioEngine } from '@/lib/audio/AudioEngine'
+import { MusicService } from '@/lib/audio/MusicService'
 import { LocalProfiles } from '@/lib/profiles/LocalProfiles'
 import { DailyChallenges } from '@/lib/profiles/DailyChallenges'
 import { SeasonService } from '@/lib/season/SeasonService'
+import { PlayerProfileService } from '@/lib/game/profile/PlayerProfileService'
+import { ProgressionService } from '@/lib/game/levels/ProgressionService'
+import { DailyChallengeService } from '@/lib/game/liveops/DailyChallengeService'
+import { WeeklyEventService } from '@/lib/game/liveops/WeeklyEventService'
+import { syncProfileToLeaderboards } from '@/lib/game/leaderboard/LeaderboardService'
+import { runMigrationIfNeeded } from '@/lib/game/migrations/migratePhase9'
+import { ShopService } from '@/lib/game/shop/ShopService'
 import { CHARACTERS } from '@/lib/game/characters/characters'
 import { useGameSync } from '@/hooks/useGameSync'
 import { MainMenu } from '@/components/MainMenu'
@@ -32,6 +41,7 @@ import { RoomCreator } from '@/components/online/RoomCreator'
 import { RoomJoiner } from '@/components/online/RoomJoiner'
 import { OnlineLobby } from '@/components/online/OnlineLobby'
 import { LevelSelect } from '@/components/screens/LevelSelect'
+import { WorldSelect } from '@/components/screens/WorldSelect'
 import { CourseSelect } from '@/components/screens/CourseSelect'
 import { CourseVictoryScreen } from '@/components/screens/CourseVictoryScreen'
 import { ALL_LEVELS, getLevelById } from '@/lib/game/maps/levelRegistry'
@@ -44,6 +54,7 @@ import type { RoomPlayer } from '@/types/room'
 import { ChaosState, defaultChaosState } from '@/types/chaos'
 import type { CourseProgressionState } from '@/lib/profiles/CourseProgression'
 import { submitLeaderboardScore } from '@/lib/firebase/leaderboards'
+import type { WorldDef, WorldLevelDef } from '@/lib/game/levels/LevelTypes'
 
 const slide = {
   initial:    { opacity: 0, scale: 0.98 },
@@ -67,6 +78,11 @@ export default function Home() {
   const [matchStart,    setMatchStart]   = useState(0)
   const [victoryData,   setVictoryData]  = useState<VictoryData | null>(null)
   const [selectedLevel, setSelectedLevel] = useState<LevelDef>(ALL_LEVELS[0])
+  const [selectedWorldLevel, setSelectedWorldLevel] = useState<WorldLevelDef | null>(null)
+  const [selectedWorldDef,   setSelectedWorldDef]   = useState<WorldDef | null>(null)
+  // Coin/XP earned in last session (for victory screen breakdown)
+  const [lastSessionCoins, setLastSessionCoins] = useState(0)
+  const [lastSessionXp,    setLastSessionXp]    = useState(0)
 
   // Course mode state
   const [selectedCourse,     setSelectedCourse]     = useState<CourseDef | null>(null)
@@ -134,8 +150,21 @@ export default function Home() {
     characterMap,
   )
 
-  useEffect(() => { preloadGameAssets() }, [])
-  useEffect(() => { MusicManager.playScreen(screen) }, [screen])
+  // ── Phase 9 bootstrap ────────────────────────────────────────────
+  useEffect(() => {
+    preloadGameAssets()
+    // Run data migration (idempotent — skips if already done)
+    runMigrationIfNeeded()
+    // Load Suno/remote music tracks into AudioEngine
+    MusicService.loadRemoteTracks('swfcp')
+    // Grant default shop items to ensure everyone starts with defaults
+    const profile = PlayerProfileService.getCurrent()
+    if (profile) ShopService.grantDefaults(profile.playerId)
+  }, [])
+  useEffect(() => {
+    MusicManager.playScreen(screen)
+    AudioEngine.playScreen(screen)
+  }, [screen])
 
   // Set player name from profile on load
   useEffect(() => {
@@ -153,7 +182,7 @@ export default function Home() {
     if (selectingFor === 1) {
       setPlayer1(char)
       if (gameMode === '1v1') { setSelectingFor(2) }
-      else { setScreen('course-select') }
+      else { setScreen('world-select') }
     } else {
       setPlayer2(char)
       setScreen('level-select')
@@ -185,7 +214,7 @@ export default function Home() {
   ) => {
     setVictoryData({ winnerId, time, coins })
 
-    // Save level completion
+    // Legacy level completion key (backward compat with LevelSelect)
     const completedKey = 'swfcp_completed_levels'
     try {
       const completed: string[] = JSON.parse(localStorage.getItem(completedKey) ?? '[]')
@@ -195,25 +224,81 @@ export default function Home() {
       }
     } catch {}
 
+    // ── Phase 9: profile-based recording ──
+    const profile = PlayerProfileService.getCurrent()
+    const weeklyMod = WeeklyEventService.getModifier()
+
+    if (gameMode === 'solo' && player1 && profile) {
+      const rawCoins = coins.p1
+      const boostedCoins = weeklyMod?.coinMultiplier
+        ? Math.round(rawCoins * weeklyMod.coinMultiplier) : rawCoins
+
+      // World level completion (if coming from WorldSelect)
+      if (selectedWorldLevel && selectedWorldDef) {
+        ProgressionService.processLevelComplete(
+          profile.playerId,
+          selectedWorldDef.id,
+          selectedWorldLevel.id,
+          time * 1000,
+          boostedCoins,
+          selectedWorldLevel.difficulty,
+        ).then(result => {
+          setLastSessionCoins(result.coinsEarned)
+          setLastSessionXp(result.xpEarned)
+          syncProfileToLeaderboards(profile.playerId)
+        })
+      } else {
+        // Legacy solo run recording
+        PlayerProfileService.recordLevelComplete({
+          playerId:       profile.playerId,
+          levelId:        selectedLevel.id,
+          difficulty:     selectedLevel.difficulty,
+          timeMs:         time * 1000,
+          coinsCollected: boostedCoins,
+          perfect:        false,
+          allCoins:       false,
+          isFirstClear:   !profile.completedLevels.includes(selectedLevel.id),
+          isBestTime:     !profile.bestTimesByCourse[selectedLevel.id] || time * 1000 < profile.bestTimesByCourse[selectedLevel.id],
+        }).then(result => {
+          setLastSessionCoins(result.coinsEarned)
+          setLastSessionXp(result.xpEarned)
+          syncProfileToLeaderboards(profile.playerId)
+        })
+      }
+
+      // Daily challenge progress
+      DailyChallengeService.updateProgress('solo_runs', 1)
+      DailyChallengeService.updateProgress('coins', coins.p1)
+    } else if ((gameMode === '1v1' || gameMode === 'online') && player1 && player2 && profile) {
+      const won = winnerId === 1
+      PlayerProfileService.recordMatch({
+        playerId: profile.playerId,
+        won,
+        coins: won ? coins.p1 : coins.p2,
+      }).then(() => syncProfileToLeaderboards(profile.playerId))
+
+      DailyChallengeService.updateProgress('wins', won ? 1 : 0)
+    }
+
+    // ── Legacy profile recording (keeps old system running) ──
     if (gameMode === 'solo' && player1) {
       LocalProfiles.recordSoloRun(player1.id, time, coins.p1)
     } else if ((gameMode === '1v1' || gameMode === 'online') && player1 && player2) {
       LocalProfiles.recordMatch(player1.id, player2.id, winnerId, coins.p1, coins.p2)
     }
 
-    // Sync updated stats to global Firestore leaderboard
+    // Legacy leaderboard sync
     const now = Date.now()
-    const syncProfile = (charId: string, name: string) => {
+    const syncLegacy = (charId: string, name: string) => {
       const p = LocalProfiles.getByCharacter(charId as never)
       if (!p) return
       submitLeaderboardScore({ playerId: charId, playerName: name, characterId: charId, score: p.wins,       category: 'wins',      updatedAt: now })
       submitLeaderboardScore({ playerId: charId, playerName: name, characterId: charId, score: p.totalCoins, category: 'coins',     updatedAt: now })
-      if (p.bestSoloTime !== null) {
+      if (p.bestSoloTime !== null)
         submitLeaderboardScore({ playerId: charId, playerName: name, characterId: charId, score: p.bestSoloTime, category: 'solo-time', updatedAt: now })
-      }
     }
-    if (player1) syncProfile(player1.id, player1.name)
-    if (player2) syncProfile(player2.id, player2.name)
+    if (player1) syncLegacy(player1.id, player1.name)
+    if (player2) syncLegacy(player2.id, player2.name)
 
     DailyChallenges.onMatchComplete({
       mode:             gameMode === 'solo' ? 'solo' : '1v1',
@@ -306,6 +391,32 @@ export default function Home() {
               playerNumber={gameMode === 'online' ? 1 : selectingFor}
               onSelect={handleCharSelect}
               onBack={handleCharSelectBack}
+            />
+          </motion.div>
+        )}
+
+        {/* ── World Select (Phase 9 — primary solo flow) ── */}
+        {screen === 'world-select' && (
+          <motion.div key="world-select" {...slide}>
+            <WorldSelect
+              onSelectLevel={(world, level) => {
+                setSelectedWorldDef(world)
+                setSelectedWorldLevel(level)
+                // Map WorldLevelDef → LevelDef for GameCanvas compatibility
+                setSelectedLevel({
+                  id:           level.id,
+                  name:         level.title,
+                  subtitle:     level.subtitle,
+                  difficulty:   level.difficulty as never,
+                  difficultyNum: level.levelNumber,
+                  description:  level.description,
+                  unlockReward: level.completionReward.unlocks?.join(', ') ?? '',
+                  map:          level.map,
+                })
+                AudioEngine.playWorld(world.id)
+                setScreen('lobby')
+              }}
+              onBack={() => { setSelectingFor(1); setScreen('character-select') }}
             />
           </motion.div>
         )}
@@ -449,7 +560,7 @@ export default function Home() {
               mode={gameMode === 'solo' ? 'solo' : '1v1'}
               levelName={selectedLevel.name}
               onStartMatch={startNewGame}
-              onBack={() => setScreen(gameMode === 'solo' ? 'course-select' : 'level-select')}
+              onBack={() => setScreen(gameMode === 'solo' ? 'world-select' : 'level-select')}
             />
           </motion.div>
         )}
