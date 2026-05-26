@@ -379,7 +379,21 @@ export default function Home() {
         if (time * 1000 <= selectedWorldLevel.threeStarMs || (allCoins && noDeath)) localStars = 3
         else if (time * 1000 <= selectedWorldLevel.parTimeMs) localStars = 2
 
-        // ── STEP 1: Show victory screen IMMEDIATELY — never freeze ──
+        // ── STEP 1: Synchronously write completion to localStorage so WorldSelect sees it immediately
+        const pSync = PlayerProfileService.getCurrent()
+        if (pSync) {
+          if (!pSync.completedLevels.includes(selectedWorldLevel.id))
+            pSync.completedLevels.push(selectedWorldLevel.id)
+          if (selectedWorldLevel.nextLevelId) {
+            if (!pSync.unlockedLevels) pSync.unlockedLevels = []
+            if (!pSync.unlockedLevels.includes(selectedWorldLevel.nextLevelId))
+              pSync.unlockedLevels.push(selectedWorldLevel.nextLevelId)
+          }
+          pSync.currentCampaignLevelId = selectedWorldLevel.nextLevelId ?? selectedWorldLevel.id
+          try { localStorage.setItem('sw-player-profile-v1', JSON.stringify(pSync)) } catch {}
+        }
+
+        // ── STEP 2: Show victory screen IMMEDIATELY — never freeze ──
         console.log('[LEVEL_COMPLETE_START]', { level: selectedWorldLevel.id, time, score: bd.finalScore, stars: localStars })
         setSoloResult({
           starsEarned:    localStars,

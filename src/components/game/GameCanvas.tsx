@@ -378,9 +378,10 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
         Matter.Body.setVelocity(body, { x: 0, y: Math.min(0.5, body.velocity.y) })
         return
       }
-      // Push — skip horizontal control, force leftward (giant_fan)
+      // Push — sustained backward force during giant_fan effect, overrides all key input
       if (trapFx?.type === 'giant_fan' && trapFx.endsAt > now) {
-        Matter.Body.setVelocity(body, { x: -7, y: vel.y })
+        const pushSpd = base.speed * 2.2
+        Matter.Body.setVelocity(body, { x: -pushSpd, y: vel.y })
         return
       }
 
@@ -496,7 +497,8 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       }
 
       for (const trap of activeTrapEntities) {
-        if (trap.triggered && trap.trapId !== 'slime_puddle' && trap.trapId !== 'giant_fan') continue
+        // slime_puddle re-checks every frame (continuous zone); all others fire once then wait for reset
+        if (trap.triggered && trap.trapId !== 'slime_puddle') continue
         const def = TRAP_REGISTRY[trap.trapId]
 
         // Check each player (traps only hit the opponent)
@@ -521,10 +523,17 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
             if (pid === 1) { p1TrapEffect = effect; p1TrapHits++ }
             else           { p2TrapEffect = effect }
 
-            // Sound + particles per type
+            // For push — apply an immediate strong impulse so the effect is instant and visible
+            if (def.effectType === 'push') {
+              const pushBody = body
+              const pushSpd  = (pid === 1 ? p1Base : p2Base).speed
+              Matter.Body.setVelocity(pushBody, { x: -pushSpd * 2.5, y: Math.min(pushBody.velocity.y, -7) })
+              SFX.push()
+              particles.push(...burst(x, y, '#60a5fa', 18, 3, 8))
+            }
+
             if (def.effectType === 'slip')   { SFX.slip();   particles.push(...burst(x, y, '#fbbf24', 14)) }
             if (def.effectType === 'freeze') { SFX.freeze(); particles.push(...burst(x, y, '#60a5fa', 16)) }
-            if (def.effectType === 'push')   { SFX.push();   particles.push(...burst(x, y, '#60a5fa', 10)) }
             if (def.effectType === 'slow')   { SFX.slow();   particles.push(...burst(x, y, '#22c55e', 16)) }
             shakeIntensity = 6
             trackEvent('trap_hit', { victim: pid, trap: trap.trapId })
@@ -541,8 +550,8 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
             }
           }
 
-          // Mark one-shot traps consumed
-          if (def.effectType !== 'slow' && def.effectType !== 'push') {
+          // Mark trap consumed — all types fire once then await reset
+          if (def.effectType !== 'slow') {
             trap.triggered = true
             // Solo hazards respawn after their cooldown period
             if (trap.isSoloHazard) trap.resetAt = now + def.cooldown * 1000
@@ -1603,14 +1612,27 @@ export function GameCanvas({ player1, player2, matchStartTime, mode, onVictory, 
       if (p1PowerEffect && nowMs > p1PowerEffect.endsAt) p1PowerEffect = null
       if (p2PowerEffect && nowMs > p2PowerEffect.endsAt) p2PowerEffect = null
 
-      // Trap activation (1v1 / online)
-      if (mode !== 'solo') {
-        // P1: Q (WASD layout) or E (arrow-key layout)
-        const p1TrapJust = (keys.has('q') && !prevKeys.has('q')) || (keys.has('e') && !prevKeys.has('e'))
-        if (p1TrapJust) activateTrap(1)
-        if (mode === '1v1') {
-          if (keys.has('/') && !prevKeys.has('/')) activateTrap(2)
+      // Trap / ability activation
+      const p1AbilityJust = (keys.has('q') && !prevKeys.has('q')) || (keys.has('e') && !prevKeys.has('e'))
+      if (p1AbilityJust) {
+        if (mode === 'solo') {
+          // In solo, Q triggers a character dash: 2.5s speed boost + forward impulse
+          const def = TRAP_REGISTRY[p1TrapId]
+          if (def && nowMs - p1TrapLastUsed >= def.cooldown * 1000) {
+            p1TrapLastUsed = nowMs
+            p1PowerEffect  = { type: 'speed_shoes', endsAt: nowMs + 2500 }
+            const dashDir  = p1Body.velocity.x >= -0.1 ? 1 : -1
+            Matter.Body.setVelocity(p1Body, { x: p1Base.speed * 2.8 * dashDir, y: Math.min(p1Body.velocity.y, 0) })
+            SFX.trapPlace()
+            particles.push(...burst(p1Body.position.x, p1Body.position.y, '#f59e0b', 14, 2, 6))
+            shakeIntensity = 3
+          }
+        } else {
+          activateTrap(1)
         }
+      }
+      if (mode === '1v1') {
+        if (keys.has('/') && !prevKeys.has('/')) activateTrap(2)
       }
 
       // Emote trigger — F for P1, ] for P2

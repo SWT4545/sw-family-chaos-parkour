@@ -6,7 +6,7 @@ export const LEVEL_4: LevelDef = {
   description: 'The playroom is alive! Giant obstacles and bouncy chaos.',
   unlockReward: 'Zaya unlocked',
   map: {
-    background: 'playroom',
+    background: 'neon',
     width: 4400, height: 720,
     startPositions: [{ x: 120, y: 620 }, { x: 165, y: 620 }],
     finishX: 4200, finishY: 298,

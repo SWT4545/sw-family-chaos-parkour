@@ -98,22 +98,22 @@ export function SoloVictoryScreen({
   }, [col, starsEarned])
 
   return (
-    <div className="relative h-dvh overflow-hidden" style={{ backgroundColor: '#02020C' }}>
+    <div className="relative h-dvh overflow-hidden flex flex-col" style={{ backgroundColor: '#02020C' }}>
 
-      {/* Atmosphere */}
+      {/* Background layers — behind everything */}
       <motion.div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none z-0"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         transition={{ duration: 0.7 }}
-        style={{ background: `radial-gradient(ellipse 110% 90% at 50% 60%, ${col}2a 0%, ${col}0c 45%, transparent 72%)` }}
+        style={{ background: `radial-gradient(ellipse 110% 90% at 50% 40%, ${col}2a 0%, ${col}0c 45%, transparent 72%)` }}
       />
-      <div className="absolute inset-0 opacity-[0.09]"
+      <div className="absolute inset-0 z-0 opacity-[0.09]"
         style={{ backgroundImage: 'url(/family-chaos-poster.png)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(32px)', transform: 'scale(1.1)' }} />
 
       {/* Burst rings */}
       {[0, 0.2, 0.38].map((delay, i) => (
         <motion.div key={i}
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none"
+          className="absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none z-0"
           style={{ border: `2px solid ${col}`, width: 60, height: 60 }}
           initial={{ scale: 0.5, opacity: 0.8 }}
           animate={{ scale: 10, opacity: 0 }}
@@ -141,94 +141,101 @@ export function SoloVictoryScreen({
         ))}
       </div>
 
-      {/* Character image */}
-      <motion.img
-        key={player.id}
-        src={celebImg(player.id)}
-        alt={player.name}
-        className="absolute bottom-0 left-1/2 -translate-x-1/2 pointer-events-none select-none z-20"
-        style={{ maxHeight: '60vh', maxWidth: '100vw', width: 'auto', height: 'auto', objectFit: 'contain', objectPosition: 'bottom center' }}
-        initial={{ y: 70, opacity: 0, scale: 0.85 }}
-        animate={{ y: 0,  opacity: 1, scale: 1   }}
-        transition={{ duration: 0.65, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-      />
+      {/* Top section — takes all space above the panel; character is absolute inside it */}
+      <div className="relative z-20 flex-1 min-h-0 overflow-hidden w-full">
 
-      {/* Ground glow */}
-      <div className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none"
-        style={{ background: `linear-gradient(to top, ${col}20 0%, transparent 100%)` }} />
+        {/* Badge + name — positioned at top */}
+        <div className="relative z-30 flex flex-col items-center pt-3"
+          style={{ paddingTop: 'calc(env(safe-area-inset-top) + 12px)' }}>
 
-      {/* Top overlay */}
-      <div className="absolute top-0 inset-x-0 z-30 pointer-events-none"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)' }}>
+          <motion.div className="flex justify-center mb-1"
+            initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.28 }}>
+            <div
+              className="flex items-center gap-2 px-5 py-1.5 rounded-full text-[11px] font-black uppercase tracking-[0.28em]"
+              style={{ backgroundColor: badge.color + '22', color: badge.color, border: `1px solid ${badge.color}55` }}>
+              <span>{badge.emoji}</span> {badge.label}
+            </div>
+          </motion.div>
 
-        {/* Badge */}
-        <motion.div className="flex justify-center mb-2"
-          initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.28 }}>
-          <div
-            className="flex items-center gap-2 px-5 py-1.5 rounded-full text-[11px] font-black uppercase tracking-[0.28em]"
-            style={{ backgroundColor: badge.color + '22', color: badge.color, border: `1px solid ${badge.color}55` }}>
-            <span>{badge.emoji}</span> {badge.label}
-          </div>
-        </motion.div>
+          <motion.div className="text-center px-4"
+            initial={{ opacity: 0, scale: 0.65, y: -8 }}
+            animate={{ opacity: 1, scale: 1,    y: 0  }}
+            transition={{ duration: 0.5, delay: 0.38, ease: [0.22, 1, 0.36, 1] }}>
+            <h1 className="font-black uppercase leading-none tracking-tighter"
+              style={{
+                fontSize: 'clamp(2rem, 9vw, 4.5rem)',
+                color: col,
+                textShadow: `0 0 40px ${col}99, 0 0 80px ${col}44`,
+              }}>
+              {player.name}
+            </h1>
+          </motion.div>
+        </div>
 
-        {/* Name */}
-        <motion.div className="text-center px-4"
-          initial={{ opacity: 0, scale: 0.65, y: -8 }}
-          animate={{ opacity: 1, scale: 1,    y: 0  }}
-          transition={{ duration: 0.5, delay: 0.38, ease: [0.22, 1, 0.36, 1] }}>
-          <h1 className="font-black uppercase leading-none tracking-tighter"
-            style={{
-              fontSize: 'clamp(3rem, 12vw, 6rem)',
-              color: col,
-              textShadow: `0 0 40px ${col}99, 0 0 80px ${col}44`,
-            }}>
-            {player.name}
-          </h1>
-        </motion.div>
+        {/* Character image — absolute, fills bottom of this section, cannot overflow into panel */}
+        <motion.img
+          key={player.id}
+          src={celebImg(player.id)}
+          alt={player.name}
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 pointer-events-none select-none"
+          style={{ maxHeight: '100%', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain', objectPosition: 'bottom center' }}
+          initial={{ y: 50, opacity: 0, scale: 0.88 }}
+          animate={{ y: 0,  opacity: 1, scale: 1   }}
+          transition={{ duration: 0.65, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+        />
+
+        {/* Ground glow */}
+        <div className="absolute bottom-0 left-0 right-0 h-20 pointer-events-none z-10"
+          style={{ background: `linear-gradient(to top, ${col}1a 0%, transparent 100%)` }} />
       </div>
 
-      {/* Bottom panel */}
-      <div className="absolute bottom-0 inset-x-0 z-30"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
+      {/* Bottom panel — fixed height, never overlaps character */}
+      <div className="relative z-30 flex-shrink-0"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 10px)' }}>
 
         {/* Stars */}
         <motion.div
-          className="mx-4 mb-2 rounded-2xl overflow-hidden"
-          style={{ background: 'rgba(0,0,0,0.74)', border: '1px solid rgba(255,255,255,0.09)', backdropFilter: 'blur(12px)' }}
+          className="mx-3 mb-1.5 rounded-2xl overflow-hidden"
+          style={{ background: 'rgba(0,0,0,0.82)', border: '1px solid rgba(255,255,255,0.09)', backdropFilter: 'blur(12px)' }}
           initial={{ opacity: 0, y: 32 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.55 }}>
           <StarRow stars={starsEarned} color={col} />
         </motion.div>
 
         {/* Stats */}
-        <motion.div className="mx-4 mb-2 rounded-2xl overflow-hidden"
-          style={{ background: 'rgba(0,0,0,0.74)', border: '1px solid rgba(255,255,255,0.09)', backdropFilter: 'blur(12px)' }}
+        <motion.div className="mx-3 mb-1.5 rounded-2xl overflow-hidden"
+          style={{ background: 'rgba(0,0,0,0.82)', border: '1px solid rgba(255,255,255,0.09)', backdropFilter: 'blur(12px)' }}
           initial={{ opacity: 0, y: 32 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.68 }}>
           <div className="flex">
-            {/* Time */}
-            <div className="flex-1 flex flex-col items-center py-2.5" style={{ borderRight: '1px solid rgba(255,255,255,0.07)' }}>
-              <span className="text-[8px] uppercase tracking-widest text-gray-600 font-bold mb-1">Time</span>
-              <span className="text-white font-black text-lg tabular-nums">⏱ {fmtTime(time)}</span>
+            <div className="flex-1 flex flex-col items-center py-2" style={{ borderRight: '1px solid rgba(255,255,255,0.07)' }}>
+              <span className="text-[8px] uppercase tracking-widest text-gray-600 font-bold mb-0.5">Time</span>
+              <span className="text-white font-black text-base tabular-nums">⏱ {fmtTime(time)}</span>
             </div>
-            {/* Coins earned */}
-            <div className="flex-1 flex flex-col items-center py-2.5" style={{ borderRight: '1px solid rgba(255,255,255,0.07)' }}>
-              <span className="text-[8px] uppercase tracking-widest text-gray-600 font-bold mb-1">Coins</span>
-              <span className="text-yellow-400 font-black text-lg">+{coinsEarned}</span>
+            <div className="flex-1 flex flex-col items-center py-2" style={{ borderRight: '1px solid rgba(255,255,255,0.07)' }}>
+              <span className="text-[8px] uppercase tracking-widest text-gray-600 font-bold mb-0.5">Coins</span>
+              <span className="text-yellow-400 font-black text-base">+{coinsEarned}</span>
             </div>
-            {/* XP earned */}
-            <div className="flex-1 flex flex-col items-center py-2.5">
-              <span className="text-[8px] uppercase tracking-widest text-gray-600 font-bold mb-1">XP</span>
-              <span className="font-black text-lg tabular-nums" style={{ color: col }}>
-                +{xpEarned}
-              </span>
+            <div className="flex-1 flex flex-col items-center py-2">
+              <span className="text-[8px] uppercase tracking-widest text-gray-600 font-bold mb-0.5">XP</span>
+              <span className="font-black text-base tabular-nums" style={{ color: col }}>+{xpEarned}</span>
             </div>
           </div>
 
+          {/* Score inline */}
+          {scoreBreakdown && (
+            <div className="flex items-center justify-between px-4 py-1.5 border-t border-white/5">
+              <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Score</span>
+              <span className="text-base font-black tabular-nums" style={{ color: col }}>
+                {scoreBreakdown.finalScore.toLocaleString()}
+              </span>
+            </div>
+          )}
+
           {/* Unlock messages */}
           {(isFirstClear || (unlockedItems && unlockedItems.length > 0)) && (
-            <div className="border-t border-white/5 px-4 py-2">
+            <div className="border-t border-white/5 px-4 py-1.5">
               {isFirstClear && (
                 <p className="text-[10px] text-center font-bold" style={{ color: col }}>
                   🎉 First Clear Bonus!
@@ -243,58 +250,15 @@ export function SoloVictoryScreen({
           )}
         </motion.div>
 
-        {/* Score breakdown */}
-        {scoreBreakdown && (
-          <motion.div className="mx-4 mb-2 rounded-2xl overflow-hidden"
-            style={{ background: 'rgba(0,0,0,0.74)', border: '1px solid rgba(255,255,255,0.09)', backdropFilter: 'blur(12px)' }}
-            initial={{ opacity: 0, y: 32 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.78 }}>
-            {/* Final score */}
-            <div className="flex items-center justify-between px-4 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-              <span className="text-[10px] font-black uppercase tracking-widest text-white">Score</span>
-              <span className="text-lg font-black tabular-nums" style={{ color: col }}>
-                {scoreBreakdown.finalScore.toLocaleString()}
-              </span>
-            </div>
-            {/* Breakdown rows */}
-            <div className="px-4 py-2 flex flex-col gap-0.5">
-              {[
-                { label: 'Completion',    val: scoreBreakdown.basePoints,       positive: true },
-                { label: 'Coins',         val: scoreBreakdown.coinPoints,       positive: true },
-                { label: 'Time Bonus',    val: scoreBreakdown.timeBonus,        positive: true },
-                { label: 'No Deaths',     val: scoreBreakdown.noDeathBonus,     positive: true },
-                { label: 'All Coins',     val: scoreBreakdown.allCoinsBonus,    positive: true },
-                { label: 'New Best Time', val: scoreBreakdown.newBestTimeBonus, positive: true },
-                { label: 'Deaths',        val: -scoreBreakdown.deathPenalty,    positive: false },
-                { label: 'Trap Hits',     val: -scoreBreakdown.trapHitPenalty,  positive: false },
-              ].filter(r => r.val !== 0).map(row => (
-                <div key={row.label} className="flex items-center justify-between">
-                  <span className="text-[9px] text-gray-500 uppercase tracking-wider">{row.label}</span>
-                  <span className="text-[10px] font-bold tabular-nums" style={{ color: row.positive ? '#4ade80' : '#f87171' }}>
-                    {row.val > 0 ? `+${row.val.toLocaleString()}` : row.val.toLocaleString()}
-                  </span>
-                </div>
-              ))}
-              {scoreBreakdown.difficultyMult !== 1.0 && (
-                <div className="flex items-center justify-between mt-0.5">
-                  <span className="text-[9px] text-gray-500 uppercase tracking-wider">Difficulty</span>
-                  <span className="text-[10px] font-black" style={{ color: col }}>×{scoreBreakdown.difficultyMult.toFixed(2)}</span>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-
         {/* Buttons */}
-        <motion.div className="flex flex-col gap-2 px-4"
+        <motion.div className="flex flex-col gap-1.5 px-3"
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.88 }}>
+          transition={{ duration: 0.4, delay: 0.82 }}>
 
-          {/* Primary action */}
           {nextLevel && onNextLevel ? (
             <motion.button onClick={onNextLevel}
               className="flex items-center justify-center gap-2 rounded-2xl font-black text-base uppercase tracking-widest"
-              style={{ height: 56, background: col, color: '#000' }}
+              style={{ height: 52, background: col, color: '#000' }}
               whileHover={{ scale: 1.025 }} whileTap={{ scale: 0.97 }}>
               Next Level <ArrowRight size={18} />
               <span className="text-xs font-bold opacity-70 ml-1">({nextLevel.title})</span>
@@ -302,27 +266,26 @@ export function SoloVictoryScreen({
           ) : (
             <motion.button onClick={onWorldMap}
               className="flex items-center justify-center gap-2 rounded-2xl font-black text-base uppercase tracking-widest"
-              style={{ height: 56, background: col, color: '#000' }}
+              style={{ height: 52, background: col, color: '#000' }}
               whileHover={{ scale: 1.025 }} whileTap={{ scale: 0.97 }}>
               <Map size={18} /> World Map
             </motion.button>
           )}
 
-          {/* Secondary row */}
           <div className="flex gap-2">
             <button onClick={onWorldMap}
               className="flex items-center justify-center gap-1.5 rounded-xl font-bold text-xs uppercase tracking-wider text-gray-400 border border-white/10 flex-1"
-              style={{ height: 44 }}>
+              style={{ height: 42 }}>
               <Map size={12} /> Map
             </button>
             <button onClick={onPlayAgain}
               className="flex items-center justify-center gap-1.5 rounded-xl font-bold text-xs uppercase tracking-wider text-white border border-white/15 flex-1"
-              style={{ height: 44 }}>
+              style={{ height: 42 }}>
               <RotateCcw size={12} /> Retry
             </button>
             <button onClick={onWorldMap}
               className="flex items-center justify-center gap-1.5 rounded-xl font-bold text-xs uppercase tracking-wider text-gray-500 flex-1"
-              style={{ height: 44 }}>
+              style={{ height: 42 }}>
               <Home size={12} /> Menu
             </button>
           </div>

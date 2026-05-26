@@ -6,7 +6,7 @@ export const LEVEL_6: LevelDef = {
   description: 'Only the elite finish. Tiny platforms, massive gaps.',
   unlockReward: 'Governor legendary skin',
   map: {
-    background: 'domain',
+    background: 'chaos',
     width: 4400, height: 720,
     startPositions: [{ x: 120, y: 620 }, { x: 165, y: 620 }],
     finishX: 4200, finishY: 280,
